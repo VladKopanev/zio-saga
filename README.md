@@ -1,4 +1,4 @@
-#ZIO-SAGA
+# ZIO-SAGA
 
 This library helps to implement Saga Pattern in purely function way.
 
@@ -9,7 +9,7 @@ without boilerplate.
 Backed by ZIO it adds a simple abstraction called Saga that takes the responsibility of
 proper composition of both requests to other systems and associated compensating actions.
 
-###Example of usage:
+### Example of usage:
 
 Consider the following case, we have built our food delivery system in microservices fashion, so
 we have `Order` service, `Payment` service, `LoyaltyProgram` service, etc. 
