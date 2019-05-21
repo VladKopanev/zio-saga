@@ -8,10 +8,10 @@ final case class Saga[+E, +A] private (
 ) extends AnyVal {
   self =>
 
-  def map[C](f: A => C): Saga[E, C] =
+  def map[B](f: A => B): Saga[E, B] =
     Saga(request.map { case (a, comp) => (f(a), comp) })
 
-  def flatMap[E1 >: E, C](f: A => Saga[E1, C]): Saga[E1, C] =
+  def flatMap[E1 >: E, B](f: A => Saga[E1, B]): Saga[E1, B] =
     Saga(request.flatMap {
       case (a, compA) =>
         tapError(f(a).request)({ case (e, _) => compA.mapError(_ => (e, IO.unit)) })
