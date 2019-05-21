@@ -39,3 +39,4 @@ def orderSaga(): ZIO[Any with Clock, SagaError, Unit] = {
 - Compose sagas to run in parallel
 - Log sagas actions to database and restore in case of failure
 - Tests
+- Improve docs, show that it's not a simple task to compose sagas by your own

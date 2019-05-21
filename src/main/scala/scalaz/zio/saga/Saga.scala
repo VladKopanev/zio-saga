@@ -41,15 +41,18 @@ object Saga {
   def retryableCompensate[R >: Any, E, A](action: IO[E, A],
                                           c: Compensator[R, E],
                                           schedule: Schedule[E, Any]): Saga[E, A] = {
-    val retry = c.retry(schedule.unit)
-    Saga(action.bimap((_, retry), (_, retry)))
+    compensate(action, c.retry(schedule.unit))
   }
+
+  def noCompensate[E, A](action: IO[E, A]): Saga[E, A] = compensate(action, ZIO.unit)
 
   implicit class Compensable[+E, +A](val action: IO[E, A]) extends AnyVal {
     def compensate[R >: Any, E1 >: E](c: Compensator[R, E1]): Saga[E1, A] = Saga.compensate(action, c)
 
     def retryableCompensate[R >: Any, E1 >: E](c: Compensator[R, E1], schedule: Schedule[E1, Any]): Saga[E1, A] =
       Saga.retryableCompensate(action, c, schedule)
+
+    def noCompensate: Saga[E, A] = Saga.noCompensate(action)
   }
 
 }
