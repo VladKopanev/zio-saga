@@ -20,13 +20,13 @@ final case class Saga[+E, +A] private (
   self =>
 
   /**
-   * Maps the resulting value `A` of this saga to value `B` with function `f`.
+   * Maps the resulting value `A` of this Saga to value `B` with function `f`.
    * */
   def map[B](f: A => B): Saga[E, B] =
     Saga(request.map { case (a, comp) => (f(a), comp) })
 
   /**
-   * Sequences the result of this saga to the next saga.
+   * Sequences the result of this Saga to the next Saga.
    * */
   def flatMap[E1 >: E, B](f: A => Saga[E1, B]): Saga[E1, B] =
     Saga(request.flatMap {
@@ -37,7 +37,7 @@ final case class Saga[+E, +A] private (
     })
 
   /**
-   * Flattens the structure of this saga by executing outer saga first and then executes inner saga.
+   * Flattens the structure of this Saga by executing outer Saga first and then executes inner Saga.
    * */
   def flatten[E1 >: E, B](implicit ev: A <:< Saga[E1, B]): Saga[E1, B] =
     self.flatMap(r => ev(r))
@@ -52,7 +52,7 @@ final case class Saga[+E, +A] private (
     })
 
   /**
-   * Materializes this saga to ZIO effect.
+   * Materializes this Saga to ZIO effect.
    * */
   def run: ZIO[Any with Clock, E, A] =
     tapError(request)({ case (e, compA) => compA.mapError(_ => (e, IO.unit)) }).bimap(_._1, _._1)
@@ -88,7 +88,7 @@ object Saga {
   }
 
   /**
-   * Constructs new `no-op` saga that will do nothing on error.
+   * Constructs new `no-op` Saga that will do nothing on error.
    * */
   def noCompensate[E, A](request: IO[E, A]): Saga[E, A] = compensate(request, ZIO.unit)
 
