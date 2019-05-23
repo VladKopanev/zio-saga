@@ -43,6 +43,15 @@ final case class Saga[+E, +A] private (
     self.flatMap(r => ev(r))
 
   /**
+   * Returns Saga that will execute this Saga in parallel with other.
+   * Both compensating actions would be executed in case of failure.
+   * */
+  def zipPar[E1 >: E, B](that: Saga[E1, B]): Saga[E1, (A, B)] =
+    Saga(request.zipWithPar(that.request) {
+      case ((a, compA), (b, compB)) => ((a, b), compB *> compA)
+    })
+
+  /**
    * Materializes this saga to ZIO effect.
    * */
   def run: ZIO[Any with Clock, E, A] =
