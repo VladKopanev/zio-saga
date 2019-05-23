@@ -31,7 +31,7 @@ final case class Saga[+E, +A] private (
   def flatMap[E1 >: E, B](f: A => Saga[E1, B]): Saga[E1, B] =
     Saga(request.flatMap {
       case (a, compA) =>
-        tapError(f(a).request)({ case (e, compC) => compC.mapError(_ => (e, IO.unit)) }).mapError {
+        tapError(f(a).request)({ case (e, compB) => compB.mapError(_ => (e, IO.unit)) }).mapError {
           case (e, _) => (e, compA)
         }
     })
@@ -46,7 +46,7 @@ final case class Saga[+E, +A] private (
    * Materializes this saga to ZIO effect.
    * */
   def run: ZIO[Any with Clock, E, A] =
-    tapError(request)({ case (e, compC) => compC.mapError(_ => (e, IO.unit)) }).bimap(_._1, _._1)
+    tapError(request)({ case (e, compA) => compA.mapError(_ => (e, IO.unit)) }).bimap(_._1, _._1)
 
   //backported from ZIO version after 1.0-RC4
   private def tapError[R, E1, E2 >: E1, B](zio: ZIO[R, E1, B])(f: E1 => ZIO[R, E2, _]): ZIO[R, E2, B] =
