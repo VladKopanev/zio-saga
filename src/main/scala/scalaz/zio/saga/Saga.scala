@@ -1,7 +1,7 @@
 package scalaz.zio.saga
-import scalaz.zio.{ IO, Schedule, ZIO }
 import scalaz.zio.clock.Clock
 import scalaz.zio.saga.Saga.Compensator
+import scalaz.zio.{ IO, Schedule, ZIO }
 
 /**
  * A Saga is an immutable structure that models a distributed transaction.
@@ -31,7 +31,9 @@ final case class Saga[+E, +A] private (
   def flatMap[E1 >: E, B](f: A => Saga[E1, B]): Saga[E1, B] =
     Saga(request.flatMap {
       case (a, compA) =>
-        tapError(f(a).request)({ case (e, _) => compA.mapError(_ => (e, IO.unit)) })
+        tapError(f(a).request)({ case (e, compC) => compC.mapError(_ => (e, IO.unit)) }).mapError {
+          case (e, _) => (e, compA)
+        }
     })
 
   /**
@@ -71,8 +73,10 @@ object Saga {
     request: IO[E, A],
     compensator: Compensator[R, E],
     schedule: Schedule[E, Any]
-  ): Saga[E, A] =
-    compensate(request, compensator.retry(schedule.unit))
+  ): Saga[E, A] = {
+    val retry: Compensator[R, E] = compensator.retry(schedule.unit)
+    compensate(request, retry)
+  }
 
   /**
    * Constructs new `no-op` saga that will do nothing on error.
