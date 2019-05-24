@@ -1,7 +1,7 @@
 package scalaz.zio.saga
 import scalaz.zio.clock.Clock
 import scalaz.zio.saga.Saga.Compensator
-import scalaz.zio.{ IO, Schedule, ZIO }
+import scalaz.zio.{ Exit, Fiber, IO, Schedule, ZIO }
 
 /**
  * A Saga is an immutable structure that models a distributed transaction.
@@ -46,10 +46,28 @@ final case class Saga[+E, +A] private (
    * Returns Saga that will execute this Saga in parallel with other.
    * Both compensating actions would be executed in case of failure.
    * */
-  def zipPar[E1 >: E, B](that: Saga[E1, B]): Saga[E1, (A, B)] =
-    Saga(request.zipWithPar(that.request) {
-      case ((a, compA), (b, compB)) => ((a, b), compB *> compA)
-    })
+  def zipPar[E1 >: E, B](that: Saga[E1, B]): Saga[E1, (A, B)] = {
+    def coordinate[A1, B1, C](f: (A1, B1) => C)(
+      winner: Exit[(E1, Compensator[Any, E1]), (A1, Compensator[Any, E1])],
+      loser: Fiber[(E1, Compensator[Any, E1]), (B1, Compensator[Any, E1])]
+    ): ZIO[Any, (E1, Compensator[Any, E1]), (C, Compensator[Any, E1])] =
+      winner match {
+        case Exit.Success((a, compA)) =>
+          loser.join.bimap ({ case (e, compB) => (e, compB *> compA)}, { case (b, compB) => (f(a, b), compB *> compA) })
+        case Exit.Failure(cause) =>
+          loser.interrupt.flatMap {
+            case Exit.Success((a, compA)) =>
+              ZIO.halt(cause.map { case (e, compB) => (e, compB *> compA) })
+            case Exit.Failure(loserCause) =>
+              val (_, compA) = cause.failures.head
+              val (_, compB) = loserCause.failures.head
+              val combined   = compB *> compA
+              ZIO.halt((cause && loserCause).map { case (e, _) => (e, combined) })
+          }
+      }
+
+    Saga(request.raceWith(that.request)(coordinate((a, b) => (a, b)), coordinate((b, a) => (a, b))))
+  }
 
   /**
    * Materializes this Saga to ZIO effect.
