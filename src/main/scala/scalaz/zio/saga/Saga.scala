@@ -64,10 +64,13 @@ final case class Saga[+E, +A] private (
             case (b, compB)                       => (f(a, b), compB *> compA)
           })
         case Exit.Failure(cause) =>
-          slowerSaga.interrupt.flatMap {
-            case Exit.Success((a, compA)) =>
+          //TODO consider using join here, we can't use interrupt because we won't get a compensation action in case
+          //IO was still running and interrupted
+          slowerSaga.await.flatMap {
+            case Exit.Success((_, compA)) =>
               ZIO.halt(cause.map { case (e, compB) => (e, compB *> compA) })
             case Exit.Failure(loserCause) =>
+              //TODO headOption, failures might be empty
               val (_, compA) = cause.failures.head
               val (_, compB) = loserCause.failures.head
               val combined   = compB *> compA

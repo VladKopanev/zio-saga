@@ -2,12 +2,14 @@ package scalaz.zio.saga
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
+import scalaz.zio.clock.Clock
 import scalaz.zio.saga.Saga.Compensator
-import scalaz.zio.{DefaultRuntime, IO, ZIO}
+import scalaz.zio.{DefaultRuntime, IO, Ref, UIO, ZIO}
 
 class SagaTest extends FlatSpec {
   import Saga._
   import SagaTest._
+  import scalaz.zio.duration._
 
   "Saga#map" should "change the result value with provided function" in {
     val runtime = new DefaultRuntime {}
@@ -15,14 +17,12 @@ class SagaTest extends FlatSpec {
     runtime.unsafeRun(saga.run) shouldBe "1"
   }
 
-  "Saga#zipPar" should "successfully run two Sagas" in  new DefaultRuntime {
+  "Saga#zipPar" should "successfully run two Sagas" in new DefaultRuntime {
     val saga = bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)
     unsafeRun(saga.run) shouldBe (FlightPayment, HotelPayment)
   }
 
-
-  "Saga#zipWithPar" should "successfully run two Sagas in parallel" in  new DefaultRuntime {
-    import scalaz.zio.duration._
+  "Saga#zipWithPar" should "successfully run two Sagas in parallel" in new DefaultRuntime {
     val sleep = ZIO.sleep(1000.millis).provide(Environment)
 
     val saga = (sleep *> bookFlight compensate cancelFlight)
@@ -32,6 +32,22 @@ class SagaTest extends FlatSpec {
     unsafeRun(saga.run)
     val time = System.currentTimeMillis() - start
     assert(time <= 1500, "Time limit for executing two Sagas in parallel exceeded")
+  }
+
+  it should "run both compensating actions in case one of requests fails" in new DefaultRuntime {
+    val sleep = ZIO.sleep(1000.millis).provide(Environment)
+    val sleep1 = ZIO.sleep(100.millis).provide(Environment)
+
+    val sagaIO = for {
+     actionLog <- Ref.make(Vector.empty[String])
+     _ <- (sleep *> bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))).zipWithPar(
+       sleep1 *> IO.fail(HotelBookingError) compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ()
+     ).run.orElse(IO.unit)
+    log <- actionLog.get
+    } yield log
+
+    val actionLog = unsafeRun(sagaIO)
+    actionLog shouldBe List("hotel canceled", "flight canceled")
   }
 }
 
@@ -47,8 +63,8 @@ object SagaTest {
   case class PaymentInfo(amount: Double)
 
   val FlightPayment = PaymentInfo(420d)
-  val HotelPayment = PaymentInfo(1448d)
-  val CarPayment = PaymentInfo(42d)
+  val HotelPayment  = PaymentInfo(1448d)
+  val CarPayment    = PaymentInfo(42d)
 
   def bookFlight: IO[FlightBookingError, PaymentInfo] = IO.succeed(FlightPayment)
 
@@ -60,7 +76,13 @@ object SagaTest {
 
   def cancelFlight: Compensator[Any, FlightBookingError] = IO.unit
 
+  def cancelFlight(postAction: UIO[Any]): Compensator[Any, FlightBookingError] =
+    postAction *> IO.unit
+
   def cancelHotel: Compensator[Any, HotelBookingError] = IO.unit
+
+  def cancelHotel(postAction: UIO[Any]): Compensator[Any, HotelBookingError] =
+    postAction *> IO.unit
 
   def cancelCar: Compensator[Any, CarBookingError] = IO.unit
 
