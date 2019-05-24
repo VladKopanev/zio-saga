@@ -48,14 +48,14 @@ final case class Saga[+E, +A] private (
    * */
   def zipPar[E1 >: E, B](that: Saga[E1, B]): Saga[E1, (A, B)] = {
     def coordinate[A1, B1, C](f: (A1, B1) => C)(
-      winner: Exit[(E1, Compensator[Any, E1]), (A1, Compensator[Any, E1])],
-      loser: Fiber[(E1, Compensator[Any, E1]), (B1, Compensator[Any, E1])]
+      fasterSaga: Exit[(E1, Compensator[Any, E1]), (A1, Compensator[Any, E1])],
+      slowerSaga: Fiber[(E1, Compensator[Any, E1]), (B1, Compensator[Any, E1])]
     ): ZIO[Any, (E1, Compensator[Any, E1]), (C, Compensator[Any, E1])] =
-      winner match {
+      fasterSaga match {
         case Exit.Success((a, compA)) =>
-          loser.join.bimap ({ case (e, compB) => (e, compB *> compA)}, { case (b, compB) => (f(a, b), compB *> compA) })
+          slowerSaga.join.bimap ({ case (e, compB) => (e, compB *> compA)}, { case (b, compB) => (f(a, b), compB *> compA) })
         case Exit.Failure(cause) =>
-          loser.interrupt.flatMap {
+          slowerSaga.interrupt.flatMap {
             case Exit.Success((a, compA)) =>
               ZIO.halt(cause.map { case (e, compB) => (e, compB *> compA) })
             case Exit.Failure(loserCause) =>
