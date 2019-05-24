@@ -43,17 +43,26 @@ final case class Saga[+E, +A] private (
     self.flatMap(r => ev(r))
 
   /**
-   * Returns Saga that will execute this Saga in parallel with other.
+   * Returns Saga that will execute this Saga in parallel with other, combining the result in a tuple.
    * Both compensating actions would be executed in case of failure.
    * */
-  def zipPar[E1 >: E, B](that: Saga[E1, B]): Saga[E1, (A, B)] = {
-    def coordinate[A1, B1, C](f: (A1, B1) => C)(
+  def zipPar[E1 >: E, B](that: Saga[E1, B]): Saga[E1, (A, B)] =
+    zipWithPar(that)((a, b) => (a, b))
+
+  /**
+   * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`.
+   * Both compensating actions would be executed in case of failure.
+   * */
+  def zipWithPar[E1 >: E, B, C](that: Saga[E1, B])(f: (A, B) => C): Saga[E1, C] = {
+    def coordinate[A1, B1, C1](f: (A1, B1) => C1)(
       fasterSaga: Exit[(E1, Compensator[Any, E1]), (A1, Compensator[Any, E1])],
       slowerSaga: Fiber[(E1, Compensator[Any, E1]), (B1, Compensator[Any, E1])]
-    ): ZIO[Any, (E1, Compensator[Any, E1]), (C, Compensator[Any, E1])] =
+    ): ZIO[Any, (E1, Compensator[Any, E1]), (C1, Compensator[Any, E1])] =
       fasterSaga match {
         case Exit.Success((a, compA)) =>
-          slowerSaga.join.bimap ({ case (e, compB) => (e, compB *> compA)}, { case (b, compB) => (f(a, b), compB *> compA) })
+          slowerSaga.join.bimap({ case (e, compB) => (e, compB *> compA) }, {
+            case (b, compB)                       => (f(a, b), compB *> compA)
+          })
         case Exit.Failure(cause) =>
           slowerSaga.interrupt.flatMap {
             case Exit.Success((a, compA)) =>
@@ -65,8 +74,8 @@ final case class Saga[+E, +A] private (
               ZIO.halt((cause && loserCause).map { case (e, _) => (e, combined) })
           }
       }
-
-    Saga(request.raceWith(that.request)(coordinate((a, b) => (a, b)), coordinate((b, a) => (a, b))))
+    val g = (b: B, a: A) => f(a, b)
+    Saga(request.raceWith(that.request)(coordinate(f), coordinate(g)))
   }
 
   /**
