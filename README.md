@@ -1,6 +1,6 @@
 # ZIO-SAGA
 
-This library helps to implement Saga Pattern in purely function way.
+This library helps to implement Saga Pattern in purely functional way.
 
 It allows you to compose your requests and compensating actions in one distributed transaction
 without boilerplate.
