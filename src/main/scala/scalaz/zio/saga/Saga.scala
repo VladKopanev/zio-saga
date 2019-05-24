@@ -103,6 +103,35 @@ object Saga {
     Saga(request.bimap((_, compensator), (_, compensator)))
 
   /**
+   * Runs all Sagas in iterable in parallel and collects
+   * the results.
+   */
+  def collectAllPar[E, A](sagas: Iterable[Saga[E, A]]): Saga[E, List[A]] =
+    foreachPar[E, Saga[E, A], A](sagas)(identity)
+
+  /**
+    * Runs all Sagas in iterable in parallel, and collect
+    * the results.
+    */
+  def collectAllPar[E, A](sagas: Saga[E, A]*): Saga[E, List[A]] =
+    collectAllPar(sagas)
+
+  /**
+   * Constructs a Saga that applies the function `f` to each element of the `Iterable[A]` in parallel,
+   * and returns the results in a new `List[B]`.
+   *
+   */
+  def foreachPar[E, A, B](as: Iterable[A])(fn: A => Saga[E, B]): Saga[E, List[B]] =
+    as.foldRight[Saga[E, List[B]]](Saga.noCompensate(IO.effectTotal(Nil))) { (a, io) =>
+      fn(a).zipWithPar(io)((b, bs) => b :: bs)
+    }
+
+  /**
+   * Constructs new `no-op` Saga that will do nothing on error.
+   * */
+  def noCompensate[E, A](request: IO[E, A]): Saga[E, A] = compensate(request, ZIO.unit)
+
+  /**
    * Constructs new Saga from action, compensating action and a scheduling policy for retrying compensation.
    * */
   def retryableCompensate[R >: Any, E, A](
@@ -113,11 +142,6 @@ object Saga {
     val retry: Compensator[R, E] = compensator.retry(schedule.unit)
     compensate(request, retry)
   }
-
-  /**
-   * Constructs new `no-op` Saga that will do nothing on error.
-   * */
-  def noCompensate[E, A](request: IO[E, A]): Saga[E, A] = compensate(request, ZIO.unit)
 
   /**
    * Extension methods for IO requests.
