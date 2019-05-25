@@ -3,21 +3,21 @@ package scalaz.zio.saga
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 import scalaz.zio.clock.Clock
+import scalaz.zio.duration.Duration
 import scalaz.zio.saga.Saga.Compensator
-import scalaz.zio.{DefaultRuntime, IO, Ref, UIO, ZIO}
+import scalaz.zio.{ DefaultRuntime, IO, Ref, UIO, ZIO }
 
 class SagaTest extends FlatSpec {
   import Saga._
   import SagaTest._
   import scalaz.zio.duration._
 
-  "Saga#map" should "change the result value with provided function" in {
-    val runtime = new DefaultRuntime {}
-    val saga    = Saga.compensate(ZIO.succeed(1), ZIO.unit).map(_.toString)
-    runtime.unsafeRun(saga.run) shouldBe "1"
+  "Saga#map" should "change the result value with provided function" in new TestRuntime {
+    val saga = Saga.compensate(ZIO.succeed(1), ZIO.unit).map(_.toString)
+    unsafeRun(saga.run) shouldBe "1"
   }
 
-  "Saga#zipPar" should "successfully run two Sagas" in new DefaultRuntime {
+  "Saga#zipPar" should "successfully run two Sagas" in new TestRuntime {
     val saga = bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)
     unsafeRun(saga.run) shouldBe (FlightPayment, HotelPayment)
   }
@@ -34,21 +34,43 @@ class SagaTest extends FlatSpec {
     assert(time <= 1500, "Time limit for executing two Sagas in parallel exceeded")
   }
 
-  it should "run both compensating actions in case one of requests fails" in new DefaultRuntime {
-    val sleep = ZIO.sleep(1000.millis).provide(Environment)
-    val sleep1 = ZIO.sleep(100.millis).provide(Environment)
-
+  it should "run both compensating actions in case one of requests fails" in new TestRuntime {
     val sagaIO = for {
-     actionLog <- Ref.make(Vector.empty[String])
-     _ <- (sleep *> bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))).zipWithPar(
-       sleep1 *> IO.fail(HotelBookingError) compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ()
-     ).run.orElse(IO.unit)
-    log <- actionLog.get
+      actionLog <- Ref.make(Vector.empty[String])
+      _ <- (sleep(1000.millis) *> bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))
+            .zipWithPar(
+              sleep(100.millis) *> IO
+                .fail(HotelBookingError()) compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+            )((_, _) => ())
+            .run
+            .orElse(IO.unit)
+      log <- actionLog.get
     } yield log
 
     val actionLog = unsafeRun(sagaIO)
-    actionLog shouldBe List("hotel canceled", "flight canceled")
+    actionLog shouldBe Vector("flight canceled", "hotel canceled")
   }
+
+  it should "run both compensating actions in case both requests fails" in new TestRuntime {
+    val sagaIO = for {
+      actionLog <- Ref.make(Vector.empty[String])
+      _ <- (sleep(1000.millis) *> IO.fail(FlightBookingError()) compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))
+        .zipWithPar(
+          sleep(100.millis) *> IO
+            .fail(HotelBookingError()) compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+        )((_, _) => ())
+        .run
+        .orElse(IO.unit)
+      log <- actionLog.get
+    } yield log
+
+    val actionLog = unsafeRun(sagaIO)
+    actionLog shouldBe Vector("flight canceled", "hotel canceled")
+  }
+}
+
+trait TestRuntime extends DefaultRuntime {
+  def sleep(d: Duration): UIO[Unit] = ZIO.sleep(d).provide(Environment)
 }
 
 object SagaTest {
