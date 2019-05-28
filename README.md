@@ -80,7 +80,12 @@ def orderSaga(): ZIO[Any with Clock, SagaError, Unit] = {
   }
 ```
 
-As you can see with `ZIO-SAGA` the process of building your own Sagas is really simple.
+`compensate` pairs request IO with compensating action IO and returns a new `Saga` object which then you can compose with other
+`Sagas`.
+To materialize `Saga` object to `ZIO` when it's complete we need to use `run` method.
+
+As you can see with `ZIO-SAGA` the process of building your own Sagas is really simple. ZIO-Sagas are composable, 
+boilerplate-free and intuitively understandable for people that aware of Saga pattern.
 
 # Additional capabilities
 
@@ -93,11 +98,12 @@ collectPayments(2d, 2) retryableCompensate (refundPayments(2d, 2), Schedule.expo
 ```
 
 In this example your Saga will retry compensating action `refundPayments` after exponentially 
-increasing timeouts.
+increasing timeouts (based on `ZIO#retry` and `ZSchedule`).
 
 
 ### Parallel execution
-`ZIO-SAGA`'s Saga class contains methods for parallel execution of requests.
+Saga pattern does not limit transactional requests to run only in sequence.
+Because of that `ZIO-SAGA` contains methods for parallel execution of requests. 
 
 ```
     val flight          = bookFlight compensate cancelFlight
@@ -107,5 +113,4 @@ increasing timeouts.
 
 ### TODO:
 - Log sagas actions to database and restore in case of failure
-- Improve docs, show that it's not a simple task to compose sagas by your own
 - Cats interop
