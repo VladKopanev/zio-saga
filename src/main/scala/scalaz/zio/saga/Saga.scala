@@ -1,4 +1,5 @@
 package scalaz.zio.saga
+import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.saga.Saga.Compensator
 import scalaz.zio.{ Exit, Fiber, IO, Schedule, ZIO }
@@ -64,16 +65,17 @@ final case class Saga[+E, +A] private (
             case (b, compB)                       => (f(a, b), compB *> compA)
           })
         case Exit.Failure(cause) =>
-          //TODO consider using join here, we can't use interrupt because we won't get a compensation action in case
+          def extractCompensatorFrom(c: Cause[(E1, Compensator[Any, E1])]): Compensator[Any, E1] =
+            c.failures.headOption.map[Compensator[Any, E1]](_._2).getOrElse(ZIO.dieMessage("Compensator was lost"))
+          //TODO we can't use interrupt here because we won't get a compensation action in case
           //IO was still running and interrupted
           slowerSaga.await.flatMap {
             case Exit.Success((_, compB)) =>
               ZIO.halt(cause.map { case (e, compA) => (e, compB *> compA) })
             case Exit.Failure(loserCause) =>
-              //TODO headOption, failures might be empty
-              val (_, compA) = cause.failures.head
-              val (_, compB) = loserCause.failures.head
-              val combined   = compB *> compA
+              val compA    = extractCompensatorFrom(cause)
+              val compB    = extractCompensatorFrom(loserCause)
+              val combined = compB *> compA
               ZIO.halt((cause && loserCause).map { case (e, _) => (e, combined) })
           }
       }
@@ -113,9 +115,9 @@ object Saga {
     foreachPar[E, Saga[E, A], A](sagas)(identity)
 
   /**
-    * Runs all Sagas in iterable in parallel, and collect
-    * the results.
-    */
+   * Runs all Sagas in iterable in parallel, and collect
+   * the results.
+   */
   def collectAllPar[E, A](sagas: Saga[E, A]*): Saga[E, List[A]] =
     collectAllPar(sagas)
 

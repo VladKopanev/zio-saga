@@ -75,7 +75,7 @@ class SagaTest extends FlatSpec {
     } yield log
 
     val actionLog = unsafeRun(sagaIO)
-    actionLog shouldBe Vector("flight canceled", "hotel canceled")
+    actionLog should contain theSameElementsAs Vector("flight canceled", "hotel canceled")
   }
 
   it should "run compensating actions in order that is opposite to which requests finished" in new TestRuntime {
