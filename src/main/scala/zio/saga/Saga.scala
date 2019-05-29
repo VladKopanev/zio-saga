@@ -149,8 +149,6 @@ object Saga {
     compensate(request, retry)
   }
 
-
-
   implicit def IOtoCompensable[E, A](io: IO[E, A]): Compensable[Any, E, A] = new Compensable(io)
 
   implicit def ZIOtoCompensable[R, E, A](zio: ZIO[R, E, A]): Compensable[R, E, A] = new Compensable(zio)
