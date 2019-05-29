@@ -3,7 +3,7 @@ package zio.saga
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import Saga.Compensator
-import scalaz.zio.{ Exit, Fiber, IO, Schedule, ZIO }
+import scalaz.zio.{Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO}
 
 /**
  * A Saga is an immutable structure that models a distributed transaction.
@@ -87,7 +87,7 @@ final case class Saga[-R, +E, +A] private (
   /**
    * Materializes this Saga to ZIO effect.
    * */
-  def run[R1 <: R, E1 >: E]: ZIO[R1, E1, A] =
+  def run: ZIO[R, E, A] =
     tapError(request)({ case (e, compA) => compA.mapError(_ => (e, IO.unit)) }).bimap(_._1, _._1)
 
   //backported from ZIO version after 1.0-RC4
@@ -149,10 +149,22 @@ object Saga {
     compensate(request, retry)
   }
 
+
+
+  implicit def IOtoCompensable[E, A](io: IO[E, A]): Compensable[Any, E, A] = new Compensable(io)
+
+  implicit def ZIOtoCompensable[R, E, A](zio: ZIO[R, E, A]): Compensable[R, E, A] = new Compensable(zio)
+
+  implicit def UIOtoCompensable[A](uio: UIO[A]): Compensable[Any, Nothing, A] = new Compensable(uio)
+
+  implicit def TaskRtoCompensable[R, A](taskR: TaskR[R, A]): Compensable[R, Throwable, A] = new Compensable(taskR)
+
+  implicit def TaskToCompensable[A](taskR: Task[A]): Compensable[Any, Throwable, A] = new Compensable(taskR)
+
   /**
-   * Extension methods for IO requests.
-   * */
-  implicit class Compensable[-R, +E, +A](val request: ZIO[R, E, A]) extends AnyVal {
+    * Extension methods for IO requests.
+    * */
+  class Compensable[-R, +E, +A](val request: ZIO[R, E, A]) extends AnyVal {
     def compensate[R1 <: R, E1 >: E](c: Compensator[R1, E1]): Saga[R1, E1, A] = Saga.compensate(request, c)
 
     def retryableCompensate[R1 <: R, E1 >: E](

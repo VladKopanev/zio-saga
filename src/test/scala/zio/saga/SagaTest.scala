@@ -2,7 +2,6 @@ package zio.saga
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
-import scalaz.zio.clock.Clock
 import scalaz.zio.duration.Duration
 import Saga.Compensator
 import scalaz.zio.{DefaultRuntime, IO, Ref, Schedule, UIO, ZIO}
@@ -101,16 +100,24 @@ class SagaTest extends FlatSpec {
     def failCompensator(log: Ref[Vector[String]]): Compensator[Any, FlightBookingError] =
       cancelFlight(log.update(_ :+ "Compensation failed")) *> IO.fail(FlightBookingError())
 
-    //TODO type inference sucks here
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
-      _ <- (failFlight retryableCompensate(failCompensator(actionLog), Schedule.once))
-        .run[Any with Clock, FlightBookingError].orElse(ZIO.unit)
+      _ <- (failFlight retryableCompensate(failCompensator(actionLog), Schedule.once)).run.orElse(ZIO.unit)
       log <- actionLog.get
     } yield log
 
     val actionLog = unsafeRun(sagaIO)
     actionLog shouldBe Vector.fill(2)("Compensation failed")
+  }
+
+  it should "work with other combinators" in new TestRuntime {
+    val saga = for {
+      _ <- bookFlight.noCompensate
+      _ <- bookHotel retryableCompensate (cancelHotel, Schedule.once)
+      _ <- bookCar compensate cancelCar
+    } yield ()
+
+    unsafeRun(saga.run)
   }
 
   "Saga#collectAllPar" should "construct a Saga that runs several requests in parallel" in new TestRuntime {
