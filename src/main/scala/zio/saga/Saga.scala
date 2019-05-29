@@ -1,7 +1,8 @@
-package scalaz.zio.saga
+package zio.saga
+
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
-import scalaz.zio.saga.Saga.Compensator
+import Saga.Compensator
 import scalaz.zio.{ Exit, Fiber, IO, Schedule, ZIO }
 
 /**

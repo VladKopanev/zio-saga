@@ -1,9 +1,9 @@
-package scalaz.zio.saga
+package zio.saga
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 import scalaz.zio.duration.Duration
-import scalaz.zio.saga.Saga.Compensator
+import Saga.Compensator
 import scalaz.zio.{DefaultRuntime, IO, Ref, Schedule, UIO, ZIO}
 
 class SagaTest extends FlatSpec {
