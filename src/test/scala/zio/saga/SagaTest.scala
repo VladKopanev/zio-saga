@@ -18,8 +18,11 @@ class SagaTest extends FlatSpec {
   }
 
   "Saga#zipPar" should "successfully run two Sagas" in new TestRuntime {
+    val sag1 = bookFlight.noCompensate
+    val sag2: Saga[Any, Any, FlightBookingError, PaymentInfo] = Saga.compensate(bookFlight, cancelFlight)
+
     val saga = bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)
-    unsafeRun(saga.run) shouldBe (FlightPayment, HotelPayment)
+    unsafeRun(saga.run[Any, Any, SagaError]) shouldBe (FlightPayment, HotelPayment)
   }
 
   "Saga#zipWithPar" should "successfully run two Sagas in parallel" in new DefaultRuntime {
@@ -29,7 +32,7 @@ class SagaTest extends FlatSpec {
       .zipWithPar(sleep *> bookHotel compensate cancelHotel)((_, _) => ())
 
     val start = System.currentTimeMillis()
-    unsafeRun(saga.run)
+    unsafeRun(saga.run[Any, Any, SagaError])
     val time = System.currentTimeMillis() - start
     assert(time <= 1500, "Time limit for executing two Sagas in parallel exceeded")
   }
@@ -105,12 +108,25 @@ class SagaTest extends FlatSpec {
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
       _ <- (failFlight retryableCompensate(failCompensator(actionLog), Schedule.once))
-        .run[Any with Clock, FlightBookingError].orElse(ZIO.unit)
+        .run.orElse(ZIO.unit)
       log <- actionLog.get
     } yield log
 
     val actionLog = unsafeRun(sagaIO)
     actionLog shouldBe Vector.fill(2)("Compensation failed")
+  }
+
+  it should "work with other combinators" in new TestRuntime {
+
+    val cancelF = cancelFlight.retry(Schedule.once).unit
+    val sagaIO = (for {
+      _ <- bookHotel.noCompensate
+      _ <- bookFlight compensate cancelF
+      _ <- bookCar compensate cancelCar
+    } yield ()).run[Any, Any, SagaError]
+
+    unsafeRun(sagaIO)
+
   }
 
   "Saga#collectAllPar" should "construct a Saga that runs several requests in parallel" in new TestRuntime {
@@ -177,7 +193,7 @@ object SagaTest {
   val HotelPayment  = PaymentInfo(1448d)
   val CarPayment    = PaymentInfo(42d)
 
-  def bookFlight: IO[FlightBookingError, PaymentInfo] = IO.succeed(FlightPayment)
+  def bookFlight: ZIO[Any, FlightBookingError, PaymentInfo] = ZIO.succeed(FlightPayment)
 
   def bookHotel: IO[HotelBookingError, PaymentInfo] = IO.succeed(HotelPayment)
 

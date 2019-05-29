@@ -16,21 +16,21 @@ import scalaz.zio.{ Exit, Fiber, IO, Schedule, ZIO }
  * If error occurs Saga will execute compensating actions starting from action that corresponds to failed request
  * till the first already completed request.
  * */
-final case class Saga[-R, +E, +A] private (
-  private val request: ZIO[R, (E, Compensator[R, E]), (A, Compensator[R, E])]
+final case class Saga[-R, -RC, +E, +A] private (
+  private val request: ZIO[R, (E, Compensator[RC, E]), (A, Compensator[RC, E])]
 ) extends AnyVal {
   self =>
 
   /**
    * Maps the resulting value `A` of this Saga to value `B` with function `f`.
    * */
-  def map[B](f: A => B): Saga[R, E, B] =
+  def map[B](f: A => B): Saga[R, RC, E, B] =
     Saga(request.map { case (a, comp) => (f(a), comp) })
 
   /**
    * Sequences the result of this Saga to the next Saga.
    * */
-  def flatMap[R1 <: R, E1 >: E, B](f: A => Saga[R1, E1, B]): Saga[R1, E1, B] =
+  def flatMap[R1 <: R, RC1 <: RC, E1 >: E, B](f: A => Saga[R1, RC1, E1, B]): Saga[R1 with RC1, RC1, E1, B] =
     Saga(request.flatMap {
       case (a, compA) =>
         tapError(f(a).request)({ case (e, compB) => compB.mapError(_ => (e, IO.unit)) }).mapError {
@@ -41,33 +41,33 @@ final case class Saga[-R, +E, +A] private (
   /**
    * Flattens the structure of this Saga by executing outer Saga first and then executes inner Saga.
    * */
-  def flatten[R1 <: R, E1 >: E, B](implicit ev: A <:< Saga[R1, E1, B]): Saga[R1, E1, B] =
+  def flatten[R1 <: R, RC1 <: RC, E1 >: E, B](implicit ev: A <:< Saga[R1, RC1, E1, B]): Saga[R1 with RC1, RC1, E1, B] =
     self.flatMap(r => ev(r))
 
   /**
    * Returns Saga that will execute this Saga in parallel with other, combining the result in a tuple.
    * Both compensating actions would be executed in case of failure.
    * */
-  def zipPar[R1 <: R, E1 >: E, B](that: Saga[R1, E1, B]): Saga[R1, E1, (A, B)] =
+  def zipPar[R1 <: R, RC1 <: RC, E1 >: E, B](that: Saga[R1, RC1, E1, B]): Saga[R1, RC1, E1, (A, B)] =
     zipWithPar(that)((a, b) => (a, b))
 
   /**
    * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`.
    * Both compensating actions would be executed in case of failure.
    * */
-  def zipWithPar[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])(f: (A, B) => C): Saga[R1, E1, C] = {
+  def zipWithPar[R1 <: R, RC1 <: RC, E1 >: E, B, C](that: Saga[R1, RC1, E1, B])(f: (A, B) => C): Saga[R1, RC1, E1, C] = {
     def coordinate[A1, B1, C1](f: (A1, B1) => C1)(
-      fasterSaga: Exit[(E1, Compensator[R1, E1]), (A1, Compensator[R1, E1])],
-      slowerSaga: Fiber[(E1, Compensator[R1, E1]), (B1, Compensator[R1, E1])]
-    ): ZIO[R1, (E1, Compensator[R1, E1]), (C1, Compensator[R1, E1])] =
+      fasterSaga: Exit[(E1, Compensator[RC1, E1]), (A1, Compensator[RC1, E1])],
+      slowerSaga: Fiber[(E1, Compensator[RC1, E1]), (B1, Compensator[RC1, E1])]
+    ): ZIO[R1, (E1, Compensator[RC1, E1]), (C1, Compensator[RC1, E1])] =
       fasterSaga match {
         case Exit.Success((a, compA)) =>
           slowerSaga.join.bimap({ case (e, compB) => (e, compB *> compA) }, {
             case (b, compB)                       => (f(a, b), compB *> compA)
           })
         case Exit.Failure(cause) =>
-          def extractCompensatorFrom(c: Cause[(E1, Compensator[R1, E1])]): Compensator[R1, E1] =
-            c.failures.headOption.map[Compensator[R1, E1]](_._2).getOrElse(ZIO.dieMessage("Compensator was lost"))
+          def extractCompensatorFrom(c: Cause[(E1, Compensator[RC1, E1])]): Compensator[RC1, E1] =
+            c.failures.headOption.map[Compensator[RC1, E1]](_._2).getOrElse(ZIO.dieMessage("Compensator was lost"))
           //TODO we can't use interrupt here because we won't get a compensation action in case
           //IO was still running and interrupted
           slowerSaga.await.flatMap {
@@ -87,7 +87,7 @@ final case class Saga[-R, +E, +A] private (
   /**
    * Materializes this Saga to ZIO effect.
    * */
-  def run[R1 <: R, E1 >: E]: ZIO[R1, E1, A] =
+  def run[R1 <: R, RC1 <: RC, E1 >: E]: ZIO[R1 with RC1, E1, A] =
     tapError(request)({ case (e, compA) => compA.mapError(_ => (e, IO.unit)) }).bimap(_._1, _._1)
 
   //backported from ZIO version after 1.0-RC4
@@ -105,21 +105,21 @@ object Saga {
   /**
    * Constructs new Saga from action and compensating action.
    * */
-  def compensate[R, E, A](request: ZIO[R, E, A], compensator: Compensator[R, E]): Saga[R, E, A] =
+  def compensate[R, RC, E, A](request: ZIO[R, E, A], compensator: Compensator[RC, E]): Saga[R, RC, E, A] =
     Saga(request.bimap((_, compensator), (_, compensator)))
 
   /**
    * Runs all Sagas in iterable in parallel and collects
    * the results.
    */
-  def collectAllPar[R, E, A](sagas: Iterable[Saga[R, E, A]]): Saga[R, E, List[A]] =
-    foreachPar[R, E, Saga[R, E, A], A](sagas)(identity)
+  def collectAllPar[R, RC, E, A](sagas: Iterable[Saga[R, RC, E, A]]): Saga[R, RC, E, List[A]] =
+    foreachPar[R, RC, E, Saga[R, RC, E, A], A](sagas)(identity)
 
   /**
    * Runs all Sagas in iterable in parallel, and collect
    * the results.
    */
-  def collectAllPar[R, E, A](sagas: Saga[R, E, A]*): Saga[R, E, List[A]] =
+  def collectAllPar[R, RC, E, A](sagas: Saga[R, RC, E, A]*): Saga[R, RC, E, List[A]] =
     collectAllPar(sagas)
 
   /**
@@ -127,41 +127,41 @@ object Saga {
    * and returns the results in a new `List[B]`.
    *
    */
-  def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => Saga[R, E, B]): Saga[R, E, List[B]] =
-    as.foldRight[Saga[R, E, List[B]]](Saga.noCompensate(IO.effectTotal(Nil))) { (a, io) =>
+  def foreachPar[R, RC, E, A, B](as: Iterable[A])(fn: A => Saga[R, RC, E, B]): Saga[R, RC, E, List[B]] =
+    as.foldRight[Saga[R, RC, E, List[B]]](Saga.noCompensate(IO.effectTotal(Nil))) { (a, io) =>
       fn(a).zipWithPar(io)((b, bs) => b :: bs)
     }
 
   /**
    * Constructs new `no-op` Saga that will do nothing on error.
    * */
-  def noCompensate[R, E, A](request: ZIO[R, E, A]): Saga[R, E, A] = compensate(request, ZIO.unit)
+  def noCompensate[R, E, A](request: ZIO[R, E, A]): Saga[R, Any, E, A] = compensate(request, ZIO.unit)
 
   /**
    * Constructs new Saga from action, compensating action and a scheduling policy for retrying compensation.
    * */
-  def retryableCompensate[R, E, A](
+  def retryableCompensate[R, RC, E, A](
     request: ZIO[R, E, A],
-    compensator: Compensator[R, E],
+    compensator: Compensator[RC, E],
     schedule: Schedule[E, Any]
-  ): Saga[R with Clock, E, A] = {
-    val retry: Compensator[R with Clock, E] = compensator.retry(schedule.unit)
+  ): Saga[R, RC with Clock, E, A] = {
+    val retry: Compensator[RC with Clock, E] = compensator.retry(schedule.unit)
     compensate(request, retry)
   }
 
   /**
    * Extension methods for IO requests.
    * */
-  implicit class Compensable[-R, +E, +A](val request: ZIO[R, E, A]) extends AnyVal {
-    def compensate[R1 <: R, E1 >: E](c: Compensator[R1, E1]): Saga[R1, E1, A] = Saga.compensate(request, c)
+  implicit class Compensable[R, E, A](val request: ZIO[R, E, A]) extends AnyVal {
+    def compensate[RC, E1 >: E](c: Compensator[RC, E1]): Saga[R, RC, E1, A] = Saga.compensate(request, c)
 
-    def retryableCompensate[R1 <: R, E1 >: E](
-      c: Compensator[R1, E1],
+    def retryableCompensate[RC, E1 >: E](
+      c: Compensator[RC, E1],
       schedule: Schedule[E1, Any]
-    ): Saga[R1 with Clock, E1, A] =
+    ): Saga[R, RC with Clock, E1, A] =
       Saga.retryableCompensate(request, c, schedule)
 
-    def noCompensate: Saga[R, E, A] = Saga.noCompensate(request)
+    def noCompensate: Saga[R, Any, E, A] = Saga.noCompensate(request)
   }
 
 }
