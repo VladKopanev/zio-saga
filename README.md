@@ -69,7 +69,7 @@ repeating the same boilerplate code from service to service.
 With `ZIO-SAGA` we could do it like so:
 
 ```
-def orderSaga(): ZIO[Any with Clock, SagaError, Unit] = {
+def orderSaga(): IO[SagaError, Unit] = {
     import Saga._
 
     (for {
@@ -112,5 +112,6 @@ Because of that `ZIO-SAGA` contains methods for parallel execution of requests.
 ```
 
 ### TODO:
+- Help user to deal with timeout failures
 - Log sagas actions to database and restore in case of failure
 - Cats interop

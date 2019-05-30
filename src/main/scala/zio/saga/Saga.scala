@@ -8,7 +8,7 @@ import scalaz.zio.{Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO}
 /**
  * A Saga is an immutable structure that models a distributed transaction.
  *
- * @see [[https://medium.com/@tomasz_96685/saga-pattern-and-microservices-architecture-d4b46071afcf Saga pattern]]
+ * @see [[https://blog.couchbase.com/saga-pattern-implement-business-transactions-using-microservices-part/ Saga pattern]]
  *
  * Saga class has three type parameters - R for environment, E for errors and A for successful result.
  * Saga wraps a ZIO that carries the compensating action in both error and result channels and enables a composition
