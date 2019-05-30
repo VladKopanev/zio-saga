@@ -69,7 +69,7 @@ repeating the same boilerplate code from service to service.
 With `ZIO-SAGA` we could do it like so:
 
 ```
-def orderSaga(): ZIO[Any with Clock, SagaError, Unit] = {
+def orderSaga(): IO[SagaError, Unit] = {
     import Saga._
 
     (for {
