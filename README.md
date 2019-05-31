@@ -112,5 +112,6 @@ Because of that `ZIO-SAGA` contains methods for parallel execution of requests.
 ```
 
 ### TODO:
+- Help user to deal with timeout failures
 - Log sagas actions to database and restore in case of failure
 - Cats interop

@@ -95,18 +95,29 @@ class SagaTest extends FlatSpec {
   }
 
   "Saga#retryableCompensate" should "construct Saga that repeats compensating action once" in new TestRuntime {
-    val failFlight = sleep(1000.millis) *> IO.fail(FlightBookingError())
+    val failFlight: ZIO[Any, FlightBookingError, PaymentInfo] = sleep(1000.millis) *> IO.fail(FlightBookingError())
+
     def failCompensator(log: Ref[Vector[String]]): Compensator[Any, FlightBookingError] =
-    cancelFlight(log.update(_ :+ "Compensation failed")) *> IO.fail(FlightBookingError())
+      cancelFlight(log.update(_ :+ "Compensation failed")) *> IO.fail(FlightBookingError())
 
     val sagaIO = for {
-    actionLog <- Ref.make(Vector.empty[String])
-    _         <- (failFlight retryableCompensate (failCompensator(actionLog), Schedule.once)).run.orElse(IO.unit)
-    log       <- actionLog.get
-  } yield log
+      actionLog <- Ref.make(Vector.empty[String])
+      _ <- (failFlight retryableCompensate(failCompensator(actionLog), Schedule.once)).run.orElse(ZIO.unit)
+      log <- actionLog.get
+    } yield log
 
     val actionLog = unsafeRun(sagaIO)
     actionLog shouldBe Vector.fill(2)("Compensation failed")
+  }
+
+  it should "work with other combinators" in new TestRuntime {
+    val saga = for {
+      _ <- bookFlight.noCompensate
+      _ <- bookHotel retryableCompensate (cancelHotel, Schedule.once)
+      _ <- bookCar compensate cancelCar
+    } yield ()
+
+    unsafeRun(saga.run)
   }
 
   "Saga#collectAllPar" should "construct a Saga that runs several requests in parallel" in new TestRuntime {
@@ -120,13 +131,13 @@ class SagaTest extends FlatSpec {
     sleep(100.millis) *> bookCar <* log.update(_ :+ "car2 is booked")
 
     val sagaIO = for {
-    actionLog <- Ref.make(Vector.empty[String])
-    flight    = bookFlightS(actionLog) compensate cancelFlight
-    hotel     = bookHotelS(actionLog) compensate cancelHotel
-    car       = bookCarS(actionLog) compensate cancelCar
-    car2      = bookCarS2(actionLog) compensate cancelCar
-    _         <- Saga.collectAllPar(flight, hotel, car, car2).run
-    log       <- actionLog.get
+      actionLog <- Ref.make(Vector.empty[String])
+      flight = bookFlightS(actionLog) compensate cancelFlight
+      hotel = bookHotelS(actionLog) compensate cancelHotel
+      car = bookCarS(actionLog) compensate cancelCar
+      car2 = bookCarS2(actionLog) compensate cancelCar
+      _         <- Saga.collectAllPar(flight, hotel, car, car2).run
+      log       <- actionLog.get
   } yield log
 
     val actionLog = unsafeRun(sagaIO)
