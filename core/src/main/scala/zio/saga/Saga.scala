@@ -5,6 +5,8 @@ import scalaz.zio.clock.Clock
 import Saga.Compensator
 import scalaz.zio.{Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO}
 
+import scala.language.implicitConversions
+
 /**
  * A Saga is an immutable structure that models a distributed transaction.
  *
@@ -16,7 +18,7 @@ import scalaz.zio.{Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO}
  * If error occurs Saga will execute compensating actions starting from action that corresponds to failed request
  * till the first already completed request.
  * */
-final case class Saga[-R, +E, +A] private (
+final class Saga[-R, +E, +A] private (
   private val request: ZIO[R, (E, Compensator[R, E]), (A, Compensator[R, E])]
 ) extends AnyVal {
   self =>
@@ -31,7 +33,7 @@ final case class Saga[-R, +E, +A] private (
    * Sequences the result of this Saga to the next Saga.
    * */
   def flatMap[R1 <: R, E1 >: E, B](f: A => Saga[R1, E1, B]): Saga[R1, E1, B] =
-    Saga(request.flatMap {
+    new Saga(request.flatMap {
       case (a, compA) =>
         tapError(f(a).request)({ case (e, compB) => compB.mapError(_ => (e, IO.unit)) }).mapError {
           case (e, _) => (e, compA)
@@ -68,8 +70,9 @@ final case class Saga[-R, +E, +A] private (
         case Exit.Failure(cause) =>
           def extractCompensatorFrom(c: Cause[(E1, Compensator[R1, E1])]): Compensator[R1, E1] =
             c.failures.headOption.map[Compensator[R1, E1]](_._2).getOrElse(ZIO.dieMessage("Compensator was lost"))
-          //TODO we can't use interrupt here because we won't get a compensation action in case
-          //IO was still running and interrupted
+          /* We can't use interrupt here because we won't get a compensation action in case
+            IO was still running and interrupted
+          */
           slowerSaga.await.flatMap {
             case Exit.Success((_, compB)) =>
               ZIO.halt(cause.map { case (e, compA) => (e, compB *> compA) })
@@ -81,7 +84,7 @@ final case class Saga[-R, +E, +A] private (
           }
       }
     val g = (b: B, a: A) => f(a, b)
-    Saga(request.raceWith(that.request)(coordinate(f), coordinate(g)))
+    new Saga(request.raceWith(that.request)(coordinate(f), coordinate(g)))
   }
 
   /**
@@ -106,7 +109,7 @@ object Saga {
    * Constructs new Saga from action and compensating action.
    * */
   def compensate[R, E, A](request: ZIO[R, E, A], compensator: Compensator[R, E]): Saga[R, E, A] =
-    Saga(request.bimap((_, compensator), (_, compensator)))
+    new Saga(request.bimap((_, compensator), (_, compensator)))
 
   /**
    * Runs all Sagas in iterable in parallel and collects
