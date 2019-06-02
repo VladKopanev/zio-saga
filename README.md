@@ -76,13 +76,13 @@ def orderSaga(): IO[SagaError, Unit] = {
       _ <- collectPayments(2d, 2) compensate refundPayments(2d, 2)
       _ <- assignLoyaltyPoints(1d, 1) compensate cancelLoyaltyPoints(1d, 1)
       _ <- closeOrder(1) compensate reopenOrder(1)
-    } yield ()).run
+    } yield ()).transact
   }
 ```
 
 `compensate` pairs request IO with compensating action IO and returns a new `Saga` object which then you can compose with other
 `Sagas`.
-To materialize `Saga` object to `ZIO` when it's complete we need to use `run` method.
+To materialize `Saga` object to `ZIO` when it's complete we need to use `transact` method.
 
 As you can see with `ZIO-SAGA` the process of building your own Sagas is really simple. ZIO-Sagas are composable, 
 boilerplate-free and intuitively understandable for people that aware of Saga pattern.

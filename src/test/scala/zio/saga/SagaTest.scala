@@ -13,12 +13,12 @@ class SagaTest extends FlatSpec {
 
   "Saga#map" should "change the result value with provided function" in new TestRuntime {
     val saga = Saga.compensate(ZIO.succeed(1), ZIO.unit).map(_.toString)
-    unsafeRun(saga.run) shouldBe "1"
+    unsafeRun(saga.transact) shouldBe "1"
   }
 
   "Saga#zipPar" should "successfully run two Sagas" in new TestRuntime {
     val saga = bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)
-    unsafeRun(saga.run) shouldBe (FlightPayment, HotelPayment)
+    unsafeRun(saga.transact) shouldBe (FlightPayment, HotelPayment)
   }
 
   "Saga#zipWithPar" should "successfully run two Sagas in parallel" in new DefaultRuntime {
@@ -28,7 +28,7 @@ class SagaTest extends FlatSpec {
       .zipWithPar(sleep *> bookHotel compensate cancelHotel)((_, _) => ())
 
     val start = System.currentTimeMillis()
-    unsafeRun(saga.run)
+    unsafeRun(saga.transact)
     val time = System.currentTimeMillis() - start
     assert(time <= 1500, "Time limit for executing two Sagas in parallel exceeded")
   }
@@ -40,7 +40,7 @@ class SagaTest extends FlatSpec {
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
       _ <- (bookFlightS compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))).zipWithPar(
-            failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ()).run.orElse(IO.unit)
+            failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ()).transact.orElse(IO.unit)
       log <- actionLog.get
     } yield log
 
@@ -55,7 +55,7 @@ class SagaTest extends FlatSpec {
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
       _ <- (failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))).zipWithPar(
-            bookFlightS compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))((_, _) => ()).run.orElse(IO.unit)
+            bookFlightS compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))((_, _) => ()).transact.orElse(IO.unit)
       log <- actionLog.get
     } yield log
 
@@ -70,7 +70,7 @@ class SagaTest extends FlatSpec {
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
       _ <- (failFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))).zipWithPar(
-            failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ()).run.orElse(IO.unit)
+            failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ()).transact.orElse(IO.unit)
       log <- actionLog.get
     } yield log
 
@@ -86,7 +86,7 @@ class SagaTest extends FlatSpec {
       actionLog <- Ref.make(Vector.empty[String])
       _         <- (failFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))).zipWithPar(
                     failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ())
-        .run.orElse(IO.unit)
+        .transact.orElse(IO.unit)
       log <- actionLog.get
     } yield log
 
@@ -102,7 +102,7 @@ class SagaTest extends FlatSpec {
 
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
-      _ <- (failFlight retryableCompensate(failCompensator(actionLog), Schedule.once)).run.orElse(ZIO.unit)
+      _ <- (failFlight retryableCompensate(failCompensator(actionLog), Schedule.once)).transact.orElse(ZIO.unit)
       log <- actionLog.get
     } yield log
 
@@ -117,7 +117,7 @@ class SagaTest extends FlatSpec {
       _ <- bookCar compensate cancelCar
     } yield ()
 
-    unsafeRun(saga.run)
+    unsafeRun(saga.transact)
   }
 
   "Saga#collectAllPar" should "construct a Saga that runs several requests in parallel" in new TestRuntime {
@@ -136,7 +136,7 @@ class SagaTest extends FlatSpec {
       hotel = bookHotelS(actionLog) compensate cancelHotel
       car = bookCarS(actionLog) compensate cancelCar
       car2 = bookCarS2(actionLog) compensate cancelCar
-      _         <- Saga.collectAllPar(flight, hotel, car, car2).run
+      _         <- Saga.collectAllPar(flight, hotel, car, car2).transact
       log       <- actionLog.get
   } yield log
 
@@ -156,7 +156,7 @@ class SagaTest extends FlatSpec {
       hotel =  bookHotelS compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
       car =  bookCarS compensate cancelCar(actionLog.update(_ :+ "car canceled"))
       car2 =  bookCarS2 compensate cancelCar(actionLog.update(_ :+ "car2 canceled"))
-      _ <- Saga.collectAllPar(flight, hotel, car, car2).run.orElse(IO.unit)
+      _ <- Saga.collectAllPar(flight, hotel, car, car2).transact.orElse(IO.unit)
       log <- actionLog.get
     } yield log
 
