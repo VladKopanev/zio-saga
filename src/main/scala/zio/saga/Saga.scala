@@ -16,7 +16,7 @@ import scalaz.zio.{Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO}
  * If error occurs Saga will execute compensating actions starting from action that corresponds to failed request
  * till the first already completed request.
  * */
-final case class Saga[-R, +E, +A] private (
+final class Saga[-R, +E, +A] private (
   private val request: ZIO[R, (E, Compensator[R, E]), (A, Compensator[R, E])]
 ) extends AnyVal {
   self =>
@@ -25,15 +25,15 @@ final case class Saga[-R, +E, +A] private (
    * Maps the resulting value `A` of this Saga to value `B` with function `f`.
    * */
   def map[B](f: A => B): Saga[R, E, B] =
-    Saga(request.map { case (a, comp) => (f(a), comp) })
+    new Saga(request.map { case (a, comp) => (f(a), comp) })
 
   /**
    * Sequences the result of this Saga to the next Saga.
    * */
   def flatMap[R1 <: R, E1 >: E, B](f: A => Saga[R1, E1, B]): Saga[R1, E1, B] =
-    Saga(request.flatMap {
+    new Saga(request.flatMap {
       case (a, compA) =>
-        tapError(f(a).request)({ case (e, compB) => compB.mapError(_ => (e, IO.unit)) }).mapError {
+        f(a).request.tapError({ case (e, compB) => compB.mapError(_ => (e, IO.unit)) }).mapError {
           case (e, _) => (e, compA)
         }
     })
@@ -81,21 +81,14 @@ final case class Saga[-R, +E, +A] private (
           }
       }
     val g = (b: B, a: A) => f(a, b)
-    Saga(request.raceWith(that.request)(coordinate(f), coordinate(g)))
+    new Saga(request.raceWith(that.request)(coordinate(f), coordinate(g)))
   }
 
   /**
    * Materializes this Saga to ZIO effect.
    * */
   def run: ZIO[R, E, A] =
-    tapError(request)({ case (e, compA) => compA.mapError(_ => (e, IO.unit)) }).bimap(_._1, _._1)
-
-  //backported from ZIO version after 1.0-RC4
-  private def tapError[R1, R2 <: R1, E1, E2 >: E1, B](zio: ZIO[R1, E1, B])(f: E1 => ZIO[R2, E2, _]): ZIO[R2, E2, B] =
-    zio.foldM(
-      e => f(e) *> ZIO.fail(e),
-      ZIO.succeed
-    )
+    request.tapError({ case (e, compA) => compA.mapError(_ => (e, IO.unit)) }).bimap(_._1, _._1)
 }
 
 object Saga {
@@ -106,7 +99,7 @@ object Saga {
    * Constructs new Saga from action and compensating action.
    * */
   def compensate[R, E, A](request: ZIO[R, E, A], compensator: Compensator[R, E]): Saga[R, E, A] =
-    Saga(request.bimap((_, compensator), (_, compensator)))
+    new Saga(request.bimap((_, compensator), (_, compensator)))
 
   /**
    * Runs all Sagas in iterable in parallel and collects
