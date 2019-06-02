@@ -87,7 +87,7 @@ final class Saga[-R, +E, +A] private (
   /**
    * Materializes this Saga to ZIO effect.
    * */
-  def run: ZIO[R, E, A] =
+  def transact: ZIO[R, E, A] =
     request.tapError({ case (e, compA) => compA.mapError(_ => (e, IO.unit)) }).bimap(_._1, _._1)
 }
 
