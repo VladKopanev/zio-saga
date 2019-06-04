@@ -21,6 +21,12 @@ lazy val core = project
 lazy val examples = project
   .in(file("examples"))
   .settings(
-    commonSettings
+    commonSettings,
+    libraryDependencies ++= Seq(
+      "org.tpolecat" %% "doobie-core"      % "0.7.0",
+      "org.tpolecat" %% "doobie-hikari"    % "0.7.0",
+      "org.tpolecat" %% "doobie-postgres"  % "0.7.0",
+      "org.scalaz"    %% "scalaz-zio-interop-cats" % "1.0-RC5"
+    )
   )
   .dependsOn(core % "test->test;compile->compile")

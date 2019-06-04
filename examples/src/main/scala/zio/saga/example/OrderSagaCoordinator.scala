@@ -7,7 +7,11 @@ import zio.saga.example.client.{ LoyaltyPointsServiceClient, OrderServiceClient,
 import zio.saga.example.dao.SagaLogDao
 
 trait OrderSagaCoordinator {
-  def orderSaga(userId: UUID, orderId: BigInt, money: BigDecimal, bonuses: Double): ZIO[Any, Throwable, Unit]
+  def runSaga(userId: UUID,
+              orderId: BigInt,
+              money: BigDecimal,
+              bonuses: Double,
+              sagaIdOpt: Option[Long]): ZIO[Any, Throwable, Unit]
 }
 
 class OrderSagaCoordinatorImpl(
@@ -19,53 +23,12 @@ class OrderSagaCoordinatorImpl(
 
   import zio.saga.Saga._
 
-  override def orderSaga(
+  def runSaga(
     userId: UUID,
     orderId: BigInt,
     money: BigDecimal,
-    bonuses: Double
-  ): ZIO[Any, Throwable, Unit] = {
-
-    def collectPayments(sagaId: Long) =
-      paymentServiceClient.collectPayments(userId, money) <* sagaLogDao.createSagaStep("collectPayments", sagaId)
-
-    def assignLoyaltyPoints(sagaId: Long) =
-      loyaltyPointsServiceClient.assignLoyaltyPoints(userId, bonuses) <* sagaLogDao.createSagaStep(
-        "assignLoyaltyPoints",
-        sagaId
-      )
-
-    def closeOrder(sagaId: Long) =
-      orderServiceClient.closeOrder(userId, orderId) <* sagaLogDao.createSagaStep("closeOrder", sagaId)
-
-    def refundPayments(sagaId: Long) =
-      paymentServiceClient.refundPayments(userId, money) <* sagaLogDao.createSagaStep("refundPayments", sagaId)
-
-    def cancelLoyaltyPoints(sagaId: Long) =
-      loyaltyPointsServiceClient.cancelLoyaltyPoints(userId, bonuses) <* sagaLogDao.createSagaStep(
-        "cancelLoyaltyPoints",
-        sagaId
-      )
-
-    def reopenOrder(sagaId: Long) =
-      orderServiceClient.reopenOrder(userId, orderId) <* sagaLogDao.createSagaStep("reopenOrder", sagaId)
-
-    sagaLogDao.startSaga(userId) >>= { sagaId =>
-      (for {
-        _      <- collectPayments(sagaId) compensate refundPayments(sagaId)
-        _      <- assignLoyaltyPoints(sagaId) compensate cancelLoyaltyPoints(sagaId)
-        _      <- closeOrder(sagaId) compensate reopenOrder(sagaId)
-      } yield ()).transact *> sagaLogDao.finishSaga(sagaId)
-    }
-
-  }
-
-  def restoreSaga(
-    sagaId: Long,
-    userId: UUID,
-    orderId: BigInt,
-    money: BigDecimal,
-    bonuses: Double
+    bonuses: Double,
+    sagaIdOpt: Option[Long]
   ): ZIO[Any, Throwable, Unit] = {
 
     def collectPayments(executed: List[String], sagaId: Long) =
@@ -96,15 +59,20 @@ class OrderSagaCoordinatorImpl(
       (orderServiceClient.reopenOrder(userId, orderId) <* sagaLogDao.createSagaStep("reopenOrder", sagaId))
         .when(!executed.contains("reopenOrder"))
 
-
-    sagaLogDao.listExecutedSteps(sagaId) >>= { executed =>
-      val executedSteps = executed.map(_.name)
+    def saga(sagaId: Long, executedSteps: List[String]) =
       (for {
-        _      <- collectPayments(executedSteps, sagaId) compensate refundPayments(executedSteps, sagaId)
-        _      <- assignLoyaltyPoints(executedSteps, sagaId) compensate cancelLoyaltyPoints(executedSteps, sagaId)
-        _      <- closeOrder(executedSteps, sagaId) compensate reopenOrder(executedSteps, sagaId)
+        _ <- collectPayments(executedSteps, sagaId) compensate refundPayments(executedSteps, sagaId)
+        _ <- assignLoyaltyPoints(executedSteps, sagaId) compensate cancelLoyaltyPoints(executedSteps, sagaId)
+        _ <- closeOrder(executedSteps, sagaId) compensate reopenOrder(executedSteps, sagaId)
       } yield ()).transact *> sagaLogDao.finishSaga(sagaId)
-    }
+
+    for {
+      sagaId        <- sagaIdOpt.fold(sagaLogDao.startSaga(userId))(ZIO.succeed)
+      executed      <- sagaLogDao.listExecutedSteps(sagaId)
+      executedSteps = executed.map(_.name)
+      _             <- saga(sagaId, executedSteps)
+    } yield ()
+
   }
 
 }
