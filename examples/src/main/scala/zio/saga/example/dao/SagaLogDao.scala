@@ -21,9 +21,9 @@ class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
 
   val xa = Transactor.fromDriverManager[Task](
     "org.postgresql.Driver",
-    "jdbc:postgresql:world",
+    "jdbc:postgresql:localhost",
     "postgres",
-    ""
+    "root"
   )
 
   override def finishSaga(sagaId: Long): ZIO[Any, Throwable, Unit] =
@@ -40,5 +40,5 @@ class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
       .unit
 
   override def listExecutedSteps(sagaId: Long): ZIO[Any, Throwable, List[SagaStep]] =
-    sql"SELECT  * from saga_step WHERE saga_id = $sagaId".query[SagaStep].to[Task]
+    sql"SELECT  * from saga_step WHERE saga_id = $sagaId".query[SagaStep].to[List].transact(xa)
 }
