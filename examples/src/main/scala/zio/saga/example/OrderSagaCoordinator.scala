@@ -82,21 +82,21 @@ class OrderSagaCoordinatorImpl(
         sagaLogDao.createSagaStep("reopenOrder", sagaId, result = None))
         .when(!executed.contains("reopenOrder"))
 
-    def saga(sagaId: Long, executedSteps: List[String]) =
-      (for {
+    def buildSaga(sagaId: Long, executedSteps: List[String]) =
+      for {
         _ <- collectPayments(executedSteps, sagaId) compensate refundPayments(executedSteps, sagaId)
         _ <- assignLoyaltyPoints(executedSteps, sagaId) compensate cancelLoyaltyPoints(executedSteps, sagaId)
         _ <- closeOrder(executedSteps, sagaId) compensate reopenOrder(executedSteps, sagaId)
-      } yield ()).transact *> sagaLogDao.finishSaga(sagaId)
+      } yield ()
 
     val mdcLog = wrapMDC(logger, userId, orderId, sagaIdOpt)
     for {
-      _             <- mdcLog.info("Saga execution started")
-      sagaId        <- sagaIdOpt.fold(sagaLogDao.startSaga(userId))(ZIO.succeed)
-      executed      <- sagaLogDao.listExecutedSteps(sagaId)
-      executedSteps = executed.map(_.name)
-      _             <- saga(sagaId, executedSteps)
-      _             <- mdcLog.info("Saga execution finished")
+      _        <- mdcLog.info("Saga execution started")
+      sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId))(ZIO.succeed)
+      executed <- sagaLogDao.listExecutedSteps(sagaId)
+      _        <- buildSaga(sagaId, executed.map(_.name)).transact
+      _        <- sagaLogDao.finishSaga(sagaId)
+      _        <- mdcLog.info("Saga execution finished")
     } yield ()
 
   }
