@@ -1,6 +1,7 @@
 package zio.saga.example.dao
 import java.util.UUID
 
+import io.circe.Json
 import scalaz.zio.interop.CatsPlatform
 import scalaz.zio.{ Task, ZIO }
 import zio.saga.example.model.{ SagaInfo, SagaStep }
@@ -10,7 +11,7 @@ trait SagaLogDao {
 
   def startSaga(initiator: UUID): ZIO[Any, Throwable, Long]
 
-  def createSagaStep(name: String, sagaId: Long): ZIO[Any, Throwable, Unit]
+  def createSagaStep(name: String, sagaId: Long, result: Option[Json]): ZIO[Any, Throwable, Unit]
 
   def listExecutedSteps(sagaId: Long): ZIO[Any, Throwable, List[SagaStep]]
 
@@ -36,8 +37,8 @@ class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
       .withUniqueGeneratedKeys[Long]("id")
       .transact(xa)
 
-  override def createSagaStep(name: String, sagaId: Long): ZIO[Any, Throwable, Unit] =
-    sql"""INSERT INTO saga_step("saga_id", "name", "result") VALUES ($sagaId, $name, null) ON CONFLICT DO NOTHING """.update.run
+  override def createSagaStep(name: String, sagaId: Long, result: Option[Json]): ZIO[Any, Throwable, Unit] =
+    sql"""INSERT INTO saga_step("saga_id", "name", "result") VALUES ($sagaId, $name, $result) ON CONFLICT DO NOTHING """.update.run
       .transact(xa)
       .unit
 

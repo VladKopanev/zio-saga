@@ -40,30 +40,36 @@ class OrderSagaCoordinatorImpl(
 
     def collectPayments(executed: List[String], sagaId: Long) =
       (paymentServiceClient.collectPayments(userId, money) <*
-        sagaLogDao.createSagaStep("collectPayments", sagaId)).when(!executed.contains("collectPayments"))
+        sagaLogDao.createSagaStep("collectPayments", sagaId, result = None)).when(!executed.contains("collectPayments"))
 
     def assignLoyaltyPoints(executed: List[String], sagaId: Long) =
       (loyaltyPointsServiceClient.assignLoyaltyPoints(userId, bonuses) <* sagaLogDao.createSagaStep(
         "assignLoyaltyPoints",
-        sagaId
+        sagaId,
+        result = None
       )).when(!executed.contains("assignLoyaltyPoints"))
 
     def closeOrder(executed: List[String], sagaId: Long) =
-      (orderServiceClient.closeOrder(userId, orderId) <* sagaLogDao.createSagaStep("closeOrder", sagaId))
+      (orderServiceClient.closeOrder(userId, orderId) <* sagaLogDao.createSagaStep("closeOrder", sagaId, result = None))
         .when(!executed.contains("closeOrder"))
 
     def refundPayments(executed: List[String], sagaId: Long) =
-      (paymentServiceClient.refundPayments(userId, money) <* sagaLogDao.createSagaStep("refundPayments", sagaId))
+      (paymentServiceClient.refundPayments(userId, money) <* sagaLogDao.createSagaStep("refundPayments",
+                                                                                       sagaId,
+                                                                                       result = None))
         .when(!executed.contains("refundPayments"))
 
     def cancelLoyaltyPoints(executed: List[String], sagaId: Long) =
       (loyaltyPointsServiceClient.cancelLoyaltyPoints(userId, bonuses) <* sagaLogDao.createSagaStep(
         "cancelLoyaltyPoints",
-        sagaId
+        sagaId,
+        result = None
       )).when(!executed.contains("cancelLoyaltyPoints"))
 
     def reopenOrder(executed: List[String], sagaId: Long) =
-      (orderServiceClient.reopenOrder(userId, orderId) <* sagaLogDao.createSagaStep("reopenOrder", sagaId))
+      (orderServiceClient.reopenOrder(userId, orderId) <* sagaLogDao.createSagaStep("reopenOrder",
+                                                                                    sagaId,
+                                                                                    result = None))
         .when(!executed.contains("reopenOrder"))
 
     def saga(sagaId: Long, executedSteps: List[String]) =
