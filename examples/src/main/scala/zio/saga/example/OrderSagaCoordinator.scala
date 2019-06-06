@@ -5,10 +5,12 @@ import java.util.UUID
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import scalaz.zio.interop.CatsPlatform
-import scalaz.zio.{ Task, ZIO }
-import zio.saga.example.client.{ LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient }
+import scalaz.zio.{Task, ZIO}
+import zio.saga.example.client.{LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient}
 import zio.saga.example.dao.SagaLogDao
 import zio.saga.example.model.OrderSagaData
+
+import scala.concurrent.TimeoutException
 
 trait OrderSagaCoordinator {
   def runSaga(userId: UUID,
@@ -38,31 +40,33 @@ class OrderSagaCoordinatorImpl(
     sagaIdOpt: Option[Long]
   ): ZIO[Any, Throwable, Unit] = {
 
+    import scalaz.zio.duration._
+    
     def collectPayments(executed: List[String], sagaId: Long) =
-      (paymentServiceClient.collectPayments(userId, money, sagaId.toString) <*
+      (paymentServiceClient.collectPayments(userId, money, sagaId.toString).timeoutFail(new TimeoutException("collectPayments"))(8.seconds) <*
         sagaLogDao.createSagaStep("collectPayments", sagaId, result = None)).when(!executed.contains("collectPayments"))
 
     def assignLoyaltyPoints(executed: List[String], sagaId: Long) =
-      (loyaltyPointsServiceClient.assignLoyaltyPoints(userId, bonuses, sagaId.toString) <*
+      (loyaltyPointsServiceClient.assignLoyaltyPoints(userId, bonuses, sagaId.toString).timeoutFail(new TimeoutException("assignLoyaltyPoints"))(8.seconds) <*
         sagaLogDao.createSagaStep("assignLoyaltyPoints", sagaId, result = None))
         .when(!executed.contains("assignLoyaltyPoints"))
 
     def closeOrder(executed: List[String], sagaId: Long) =
-      (orderServiceClient.closeOrder(userId, orderId, sagaId.toString) <*
+      (orderServiceClient.closeOrder(userId, orderId, sagaId.toString).timeoutFail(new TimeoutException("closeOrder"))(8.seconds) <*
         sagaLogDao.createSagaStep("closeOrder", sagaId, result = None))
         .when(!executed.contains("closeOrder"))
 
     def refundPayments(executed: List[String], sagaId: Long) =
-      (paymentServiceClient.refundPayments(userId, money, sagaId.toString) <*
+      (paymentServiceClient.refundPayments(userId, money, sagaId.toString).timeoutFail(new TimeoutException("refundPayments"))(8.seconds) <*
         sagaLogDao.createSagaStep("refundPayments", sagaId, result = None)).when(!executed.contains("refundPayments"))
 
     def cancelLoyaltyPoints(executed: List[String], sagaId: Long) =
-      (loyaltyPointsServiceClient.cancelLoyaltyPoints(userId, bonuses, sagaId.toString) <*
+      (loyaltyPointsServiceClient.cancelLoyaltyPoints(userId, bonuses, sagaId.toString).timeoutFail(new TimeoutException("cancelLoyaltyPoints"))(8.seconds) <*
         sagaLogDao.createSagaStep("cancelLoyaltyPoints", sagaId, result = None))
         .when(!executed.contains("cancelLoyaltyPoints"))
 
     def reopenOrder(executed: List[String], sagaId: Long) =
-      (orderServiceClient.reopenOrder(userId, orderId, sagaId.toString) <*
+      (orderServiceClient.reopenOrder(userId, orderId, sagaId.toString).timeoutFail(new TimeoutException("reopenOrder"))(8.seconds) <*
         sagaLogDao.createSagaStep("reopenOrder", sagaId, result = None))
         .when(!executed.contains("reopenOrder"))
 

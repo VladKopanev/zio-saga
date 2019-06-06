@@ -5,3 +5,4 @@ that also writes transaction log to database and knows how to recover from failu
 
 TODO:
 - pack project to docker image
+- what if coordinator fails after saga fails (we don't want to repeat the failed request)
