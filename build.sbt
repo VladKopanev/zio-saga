@@ -23,6 +23,7 @@ lazy val core = project
 val http4sVersion   = "0.20.1"
 val log4CatsVersion = "0.3.0"
 val doobieVersion   = "0.7.0"
+val circeVersion = "0.11.1"
 
 lazy val examples = project
   .in(file("examples"))
@@ -31,7 +32,8 @@ lazy val examples = project
     libraryDependencies ++= Seq(
       "io.chrisdavenport" %% "log4cats-core"           % log4CatsVersion,
       "io.chrisdavenport" %% "log4cats-slf4j"          % log4CatsVersion,
-      "io.circe"          %% "circe-generic"           % "0.11.1",
+      "io.circe"          %% "circe-generic"           % circeVersion,
+      "io.circe"          %% "circe-parser"            % circeVersion,
       "org.http4s"        %% "http4s-circe"            % http4sVersion,
       "org.http4s"        %% "http4s-dsl"              % http4sVersion,
       "org.http4s"        %% "http4s-blaze-server"     % http4sVersion,

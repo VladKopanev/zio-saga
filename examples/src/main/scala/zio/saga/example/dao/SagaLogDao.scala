@@ -2,6 +2,7 @@ package zio.saga.example.dao
 import java.util.UUID
 
 import io.circe.Json
+import org.postgresql.util.PGobject
 import scalaz.zio.interop.CatsPlatform
 import scalaz.zio.{ Task, ZIO }
 import zio.saga.example.model.{ SagaInfo, SagaStep }
@@ -9,7 +10,7 @@ import zio.saga.example.model.{ SagaInfo, SagaStep }
 trait SagaLogDao {
   def finishSaga(sagaId: Long): ZIO[Any, Throwable, Unit]
 
-  def startSaga(initiator: UUID): ZIO[Any, Throwable, Long]
+  def startSaga(initiator: UUID, data: Json): ZIO[Any, Throwable, Long]
 
   def createSagaStep(name: String, sagaId: Long, result: Option[Json]): ZIO[Any, Throwable, Unit]
 
@@ -21,10 +22,11 @@ trait SagaLogDao {
 class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
   import doobie._
   import doobie.implicits._
+  import doobie.postgres.implicits._
 
   val xa = Transactor.fromDriverManager[Task](
     "org.postgresql.Driver",
-    "jdbc:postgresql:localhost",
+    "jdbc:postgresql:Saga",
     "postgres",
     "root"
   )
@@ -32,16 +34,13 @@ class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
   override def finishSaga(sagaId: Long): ZIO[Any, Throwable, Unit] =
     sql"""UPDATE saga  SET "finishedAt" = now() WHERE id = $sagaId""".update.run.transact(xa).unit
 
-  override def startSaga(initiator: UUID): ZIO[Any, Throwable, Long] =
-    sql"""INSERT INTO saga("initiator", "createdAt", "finishedAt", "type") VALUES (initiator, now(), null, 'order')"""
-      .update
+  override def startSaga(initiator: UUID, data: Json): ZIO[Any, Throwable, Long] =
+    sql"""INSERT INTO saga("initiator", "createdAt", "finishedAt", "data", "type") VALUES ($initiator, now(), null, $data, 'order')""".update
       .withUniqueGeneratedKeys[Long]("id")
       .transact(xa)
 
   override def createSagaStep(name: String, sagaId: Long, result: Option[Json]): ZIO[Any, Throwable, Unit] =
-    sql"""INSERT INTO saga_step("sagaId", "name", "result") VALUES ($sagaId, $name, $result) ON CONFLICT DO NOTHING"""
-      .update
-      .run
+    sql"""INSERT INTO saga_step("sagaId", "name", "result", "finishedAt") VALUES ($sagaId, $name, $result, now()) ON CONFLICT DO NOTHING""".update.run
       .transact(xa)
       .unit
 
@@ -50,4 +49,21 @@ class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
 
   override def listUnfinishedSagas: ZIO[Any, Throwable, List[SagaInfo]] =
     sql"""SELECT * from saga s WHERE "finishedAt" IS NULL""".query[SagaInfo].to[List].transact(xa)
+
+  implicit lazy val JsonMeta: Meta[Json] = {
+    import io.circe.parser._
+    Meta.Advanced
+      .other[PGobject]("jsonb")
+      .timap[Json](
+        pgObj => parse(pgObj.getValue).fold(e => sys.error(e.message), identity)
+      )(
+        json => {
+          val pgObj = new PGobject
+          pgObj.setType("jsonb")
+          pgObj.setValue(json.noSpaces)
+          pgObj
+        }
+      )
+  }
+
 }

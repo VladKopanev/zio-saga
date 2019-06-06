@@ -12,7 +12,7 @@ class SagaEndpoint(orderSagaCoordinator: OrderSagaCoordinator) extends CatsPlatf
   implicit val decoder = jsonOf[TaskC, OrderInfo]
 
   val service: HttpApp[TaskC] = HttpRoutes.of[TaskC] {
-    case req @ POST -> Root / "finishOrder" =>
+    case req @ POST -> Root / "saga" / "finishOrder" =>
       for {
         OrderInfo(userId, orderId, money, bonuses) <- req.as[OrderInfo]
         _                                          <- orderSagaCoordinator.runSaga(userId, orderId, money, bonuses, None)

@@ -17,7 +17,7 @@ trait OrderSagaCoordinator {
               orderId: BigInt,
               money: BigDecimal,
               bonuses: Double,
-              sagaIdOpt: Option[Long]): ZIO[Any, Throwable, Unit]
+              sagaIdOpt: Option[Long]): TaskC[Unit]
 
   def recoverSagas: TaskC[Unit]
 }
@@ -38,7 +38,7 @@ class OrderSagaCoordinatorImpl(
     money: BigDecimal,
     bonuses: Double,
     sagaIdOpt: Option[Long]
-  ): ZIO[Any, Throwable, Unit] = {
+  ): TaskC[Unit] = {
 
     import scalaz.zio.duration._
 
@@ -89,10 +89,14 @@ class OrderSagaCoordinatorImpl(
         _ <- closeOrder(executedSteps, sagaId) compensate reopenOrder(executedSteps, sagaId)
       } yield ()
 
+    import io.circe.syntax._
+
     val mdcLog = wrapMDC(logger, userId, orderId, sagaIdOpt)
+    val data = OrderSagaData(userId, orderId, money, bonuses).asJson
+
     for {
       _        <- mdcLog.info("Saga execution started")
-      sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId))(ZIO.succeed)
+      sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId, data))(ZIO.succeed)
       executed <- sagaLogDao.listExecutedSteps(sagaId)
       _        <- buildSaga(sagaId, executed.map(_.name)).transact
       _        <- sagaLogDao.finishSaga(sagaId)

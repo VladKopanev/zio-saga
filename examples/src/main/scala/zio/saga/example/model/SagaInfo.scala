@@ -11,4 +11,5 @@ case class OrderSagaData(userId: UUID, orderId: BigInt, money: BigDecimal, bonus
 object OrderSagaData {
   import io.circe._, io.circe.generic.semiauto._
   implicit val decoder: Decoder[OrderSagaData] = deriveDecoder[OrderSagaData]
+  implicit val encoder: Encoder[OrderSagaData] = deriveEncoder[OrderSagaData]
 }
