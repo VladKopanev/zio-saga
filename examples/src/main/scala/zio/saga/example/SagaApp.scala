@@ -18,8 +18,10 @@ object SagaApp extends CatsPlatform with App {
       paymentService <- PaymentServiceClientStub()
       loyaltyPoints  <- LoyaltyPointsServiceClientStub()
       orderService   <- OrderServiceClientStub()
-      orderSEC       = new OrderSagaCoordinatorImpl(paymentService, loyaltyPoints, orderService, new SagaLogDaoImpl)
+      logDao         = new SagaLogDaoImpl
+      orderSEC       <- OrderSagaCoordinatorImpl(paymentService, loyaltyPoints, orderService, logDao)
       app            = new SagaEndpoint(orderSEC).service
+      _              <- orderSEC.recoverSagas.fork
       _              <- BlazeServerBuilder[TaskC].bindHttp(8042).withHttpApp(app).serve.compile.drain
     } yield ()).foldM(
       e => putStrLn(s"Saga Coordinator fails with error $e, stopping server...").const(1),

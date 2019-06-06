@@ -3,7 +3,7 @@ import java.util.UUID
 
 import scalaz.zio.interop.CatsPlatform
 import scalaz.zio.{ Task, ZIO }
-import zio.saga.example.model.SagaStep
+import zio.saga.example.model.{ SagaInfo, SagaStep }
 
 trait SagaLogDao {
   def finishSaga(sagaId: Long): ZIO[Any, Throwable, Unit]
@@ -13,6 +13,8 @@ trait SagaLogDao {
   def createSagaStep(name: String, sagaId: Long): ZIO[Any, Throwable, Unit]
 
   def listExecutedSteps(sagaId: Long): ZIO[Any, Throwable, List[SagaStep]]
+
+  def listUnfinishedSagas: ZIO[Any, Throwable, List[SagaInfo]]
 }
 
 class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
@@ -35,10 +37,13 @@ class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
       .transact(xa)
 
   override def createSagaStep(name: String, sagaId: Long): ZIO[Any, Throwable, Unit] =
-    sql"""INSERT INTO saga_step("saga_id", "name", "result") VALUES ($sagaId, $name, null)""".update.run
+    sql"""INSERT INTO saga_step("saga_id", "name", "result") VALUES ($sagaId, $name, null) ON CONFLICT DO NOTHING """.update.run
       .transact(xa)
       .unit
 
   override def listExecutedSteps(sagaId: Long): ZIO[Any, Throwable, List[SagaStep]] =
-    sql"SELECT  * from saga_step WHERE saga_id = $sagaId".query[SagaStep].to[List].transact(xa)
+    sql"SELECT * from saga_step WHERE saga_id = $sagaId".query[SagaStep].to[List].transact(xa)
+
+  override def listUnfinishedSagas: ZIO[Any, Throwable, List[SagaInfo]] =
+    sql"""SELECT * from saga s WHERE "finishedAt" IS NULL""".query[SagaInfo].to[List].transact(xa)
 }

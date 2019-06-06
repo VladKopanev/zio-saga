@@ -6,5 +6,5 @@ case class OrderInfo(userId: UUID, orderId: BigInt, money: BigDecimal, bonuses: 
 
 object OrderInfo {
   import io.circe._, io.circe.generic.semiauto._
-  implicit val OrderInfoEncoder: Decoder[OrderInfo] = deriveDecoder[OrderInfo]
+  implicit val OrderInfoDecoder: Decoder[OrderInfo] = deriveDecoder[OrderInfo]
 }
