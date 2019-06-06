@@ -58,7 +58,7 @@ class OrderSagaCoordinatorImpl(
     def closeOrder(executed: List[String], sagaId: Long) =
       (orderServiceClient
         .closeOrder(userId, orderId, sagaId.toString)
-        .timeoutFail(new TimeoutException("closeOrder"))(8.seconds) <*
+        .timeoutFail(new TimeoutException("closeOrder"))(15.seconds) <*
         sagaLogDao.createSagaStep("closeOrder", sagaId, result = None))
         .when(!executed.contains("closeOrder"))
 
@@ -109,6 +109,7 @@ class OrderSagaCoordinatorImpl(
     for {
       _     <- logger.info("Sagas recovery stared")
       sagas <- sagaLogDao.listUnfinishedSagas
+      _ <- logger.info(s"Found unfinished sagas: $sagas")
       _ <- ZIO.foreachParN_(100)(sagas) { sagaInfo =>
             ZIO.fromEither(sagaInfo.data.as[OrderSagaData]).flatMap {
               case OrderSagaData(userId, orderId, money, bonuses) =>

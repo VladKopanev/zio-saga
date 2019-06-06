@@ -30,25 +30,31 @@ class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
     "postgres",
     "root"
   )
+  implicit val han = LogHandler.jdkLogHandler
 
   override def finishSaga(sagaId: Long): ZIO[Any, Throwable, Unit] =
     sql"""UPDATE saga  SET "finishedAt" = now() WHERE id = $sagaId""".update.run.transact(xa).unit
 
   override def startSaga(initiator: UUID, data: Json): ZIO[Any, Throwable, Long] =
-    sql"""INSERT INTO saga("initiator", "createdAt", "finishedAt", "data", "type") VALUES ($initiator, now(), null, $data, 'order')""".update
+    sql"""INSERT INTO saga("initiator", "createdAt", "finishedAt", "data", "type") VALUES ($initiator, now(), null, $data, 'order')"""
+      .update
       .withUniqueGeneratedKeys[Long]("id")
       .transact(xa)
 
   override def createSagaStep(name: String, sagaId: Long, result: Option[Json]): ZIO[Any, Throwable, Unit] =
-    sql"""INSERT INTO saga_step("sagaId", "name", "result", "finishedAt") VALUES ($sagaId, $name, $result, now()) ON CONFLICT DO NOTHING""".update.run
+    sql"""INSERT INTO saga_step("sagaId", "name", "result", "finishedAt") VALUES ($sagaId, $name, $result, now())"""
+      .update
+      .run
       .transact(xa)
       .unit
 
   override def listExecutedSteps(sagaId: Long): ZIO[Any, Throwable, List[SagaStep]] =
-    sql"""SELECT * from saga_step WHERE "sagaId" = $sagaId""".query[SagaStep].to[List].transact(xa)
+    sql"""SELECT "sagaId", "name", "finishedAt", "result"
+          from saga_step WHERE "sagaId" = $sagaId""".query[SagaStep].to[List].transact(xa)
 
   override def listUnfinishedSagas: ZIO[Any, Throwable, List[SagaInfo]] =
-    sql"""SELECT * from saga s WHERE "finishedAt" IS NULL""".query[SagaInfo].to[List].transact(xa)
+    sql"""SELECT "id", "initiator", "createdAt", "finishedAt", "data", "type"
+          from saga s WHERE "finishedAt" IS NULL""".query[SagaInfo].to[List].transact(xa)
 
   implicit lazy val JsonMeta: Meta[Json] = {
     import io.circe.parser._

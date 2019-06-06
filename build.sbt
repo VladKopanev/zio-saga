@@ -23,13 +23,14 @@ lazy val core = project
 val http4sVersion   = "0.20.1"
 val log4CatsVersion = "0.3.0"
 val doobieVersion   = "0.7.0"
-val circeVersion = "0.11.1"
+val circeVersion    = "0.11.1"
 
 lazy val examples = project
   .in(file("examples"))
   .settings(
     commonSettings,
     libraryDependencies ++= Seq(
+      "ch.qos.logback"    % "logback-classic"          % "1.2.3",
       "io.chrisdavenport" %% "log4cats-core"           % log4CatsVersion,
       "io.chrisdavenport" %% "log4cats-slf4j"          % log4CatsVersion,
       "io.circe"          %% "circe-generic"           % circeVersion,
