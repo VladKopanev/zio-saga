@@ -33,17 +33,20 @@ class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
     sql"""UPDATE saga  SET "finishedAt" = now() WHERE id = $sagaId""".update.run.transact(xa).unit
 
   override def startSaga(initiator: UUID): ZIO[Any, Throwable, Long] =
-    sql"""INSERT INTO saga("initiator", "createdAt", "finishedAt") VALUES (initiator, now(), null)""".update
+    sql"""INSERT INTO saga("initiator", "createdAt", "finishedAt", "type") VALUES (initiator, now(), null, 'order')"""
+      .update
       .withUniqueGeneratedKeys[Long]("id")
       .transact(xa)
 
   override def createSagaStep(name: String, sagaId: Long, result: Option[Json]): ZIO[Any, Throwable, Unit] =
-    sql"""INSERT INTO saga_step("saga_id", "name", "result") VALUES ($sagaId, $name, $result) ON CONFLICT DO NOTHING """.update.run
+    sql"""INSERT INTO saga_step("sagaId", "name", "result") VALUES ($sagaId, $name, $result) ON CONFLICT DO NOTHING"""
+      .update
+      .run
       .transact(xa)
       .unit
 
   override def listExecutedSteps(sagaId: Long): ZIO[Any, Throwable, List[SagaStep]] =
-    sql"SELECT * from saga_step WHERE saga_id = $sagaId".query[SagaStep].to[List].transact(xa)
+    sql"""SELECT * from saga_step WHERE "sagaId" = $sagaId""".query[SagaStep].to[List].transact(xa)
 
   override def listUnfinishedSagas: ZIO[Any, Throwable, List[SagaInfo]] =
     sql"""SELECT * from saga s WHERE "finishedAt" IS NULL""".query[SagaInfo].to[List].transact(xa)

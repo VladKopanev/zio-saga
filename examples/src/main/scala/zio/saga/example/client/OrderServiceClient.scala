@@ -9,15 +9,15 @@ import scalaz.zio.{ Task, ZIO }
 
 trait OrderServiceClient {
 
-  def closeOrder(userId: UUID, orderId: BigInt): ZIO[Any, Throwable, Unit]
+  def closeOrder(userId: UUID, orderId: BigInt, traceId: String): ZIO[Any, Throwable, Unit]
 
-  def reopenOrder(userId: UUID, orderId: BigInt): ZIO[Any, Throwable, Unit]
+  def reopenOrder(userId: UUID, orderId: BigInt, traceId: String): ZIO[Any, Throwable, Unit]
 }
 
 class OrderServiceClientStub(logger: Logger[Task]) extends OrderServiceClient {
-  override def closeOrder(userId: UUID, orderId: BigInt): ZIO[Any, Throwable, Unit] =
+  override def closeOrder(userId: UUID, orderId: BigInt, traceId: String): ZIO[Any, Throwable, Unit] =
     logger.info(s"Order #$orderId closed")
-  override def reopenOrder(userId: UUID, orderId: BigInt): ZIO[Any, Throwable, Unit] =
+  override def reopenOrder(userId: UUID, orderId: BigInt, traceId: String): ZIO[Any, Throwable, Unit] =
     logger.info(s"Order #$orderId reopened")
 }
 

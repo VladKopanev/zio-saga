@@ -9,17 +9,17 @@ import scalaz.zio.{ Task, ZIO }
 
 trait PaymentServiceClient {
 
-  def collectPayments(userId: UUID, amount: BigDecimal): ZIO[Any, Throwable, Unit]
+  def collectPayments(userId: UUID, amount: BigDecimal, traceId: String): ZIO[Any, Throwable, Unit]
 
-  def refundPayments(userId: UUID, amount: BigDecimal): ZIO[Any, Throwable, Unit]
+  def refundPayments(userId: UUID, amount: BigDecimal, traceId: String): ZIO[Any, Throwable, Unit]
 }
 
 class PaymentServiceClientStub(logger: Logger[Task]) extends PaymentServiceClient {
 
-  override def collectPayments(userId: UUID, amount: BigDecimal): ZIO[Any, Throwable, Unit] =
+  override def collectPayments(userId: UUID, amount: BigDecimal, traceId: String): ZIO[Any, Throwable, Unit] =
     logger.info(s"Payments collected from user #$userId")
 
-  override def refundPayments(userId: UUID, amount: BigDecimal): ZIO[Any, Throwable, Unit] =
+  override def refundPayments(userId: UUID, amount: BigDecimal, traceId: String): ZIO[Any, Throwable, Unit] =
     logger.info(s"Payments refunded to user #$userId")
 }
 

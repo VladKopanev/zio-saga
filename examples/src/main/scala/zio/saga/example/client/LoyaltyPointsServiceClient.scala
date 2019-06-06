@@ -9,15 +9,15 @@ import scalaz.zio.{ Task, ZIO }
 
 trait LoyaltyPointsServiceClient {
 
-  def assignLoyaltyPoints(userId: UUID, amount: Double): ZIO[Any, Throwable, Unit]
+  def assignLoyaltyPoints(userId: UUID, amount: Double, traceId: String): ZIO[Any, Throwable, Unit]
 
-  def cancelLoyaltyPoints(userId: UUID, amount: Double): ZIO[Any, Throwable, Unit]
+  def cancelLoyaltyPoints(userId: UUID, amount: Double, traceId: String): ZIO[Any, Throwable, Unit]
 }
 
 class LoyaltyPointsServiceClientStub(logger: Logger[Task]) extends LoyaltyPointsServiceClient {
-  override def assignLoyaltyPoints(userId: UUID, amount: Double): ZIO[Any, Throwable, Unit] =
+  override def assignLoyaltyPoints(userId: UUID, amount: Double, traceId: String): ZIO[Any, Throwable, Unit] =
     logger.info(s"Loyalty points assigned to user $userId")
-  override def cancelLoyaltyPoints(userId: UUID, amount: Double): ZIO[Any, Throwable, Unit] =
+  override def cancelLoyaltyPoints(userId: UUID, amount: Double, traceId: String): ZIO[Any, Throwable, Unit] =
     logger.info(s"Loyalty points canceled for user $userId")
 }
 
