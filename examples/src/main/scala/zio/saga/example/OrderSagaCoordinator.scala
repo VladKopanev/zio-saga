@@ -13,11 +13,7 @@ import zio.saga.example.model.OrderSagaData
 import scala.concurrent.TimeoutException
 
 trait OrderSagaCoordinator {
-  def runSaga(userId: UUID,
-              orderId: BigInt,
-              money: BigDecimal,
-              bonuses: Double,
-              sagaIdOpt: Option[Long]): TaskC[Unit]
+  def runSaga(userId: UUID, orderId: BigInt, money: BigDecimal, bonuses: Double, sagaIdOpt: Option[Long]): TaskC[Unit]
 
   def recoverSagas: TaskC[Unit]
 }
@@ -42,45 +38,43 @@ class OrderSagaCoordinatorImpl(
 
     import scalaz.zio.duration._
 
-    def collectPayments(executed: List[String], sagaId: Long) =
-      (paymentServiceClient
-        .collectPayments(userId, money, sagaId.toString)
-        .timeoutFail(new TimeoutException("collectPayments"))(8.seconds) <*
-        sagaLogDao.createSagaStep("collectPayments", sagaId, result = None)).when(!executed.contains("collectPayments"))
+    def mkSagaRequest(request: TaskC[Unit], sagaId: Long, stepName: String, executedSteps: List[String]) =
+      (request.timeoutFail(new TimeoutException(stepName))(8.seconds) <*
+        sagaLogDao.createSagaStep(stepName, sagaId, result = None)).when(!executedSteps.contains(stepName))
 
-    def assignLoyaltyPoints(executed: List[String], sagaId: Long) =
-      (loyaltyPointsServiceClient
-        .assignLoyaltyPoints(userId, bonuses, sagaId.toString)
-        .timeoutFail(new TimeoutException("assignLoyaltyPoints"))(8.seconds) <*
-        sagaLogDao.createSagaStep("assignLoyaltyPoints", sagaId, result = None))
-        .when(!executed.contains("assignLoyaltyPoints"))
+    def collectPayments(executed: List[String], sagaId: Long) = mkSagaRequest(
+      paymentServiceClient.collectPayments(userId, money, sagaId.toString),
+      sagaId,
+      "collectPayments",
+      executed
+    )
+
+    def assignLoyaltyPoints(executed: List[String], sagaId: Long) = mkSagaRequest(
+      loyaltyPointsServiceClient.assignLoyaltyPoints(userId, bonuses, sagaId.toString),
+      sagaId,
+      "assignLoyaltyPoints",
+      executed
+    )
 
     def closeOrder(executed: List[String], sagaId: Long) =
-      (orderServiceClient
-        .closeOrder(userId, orderId, sagaId.toString)
-        .timeoutFail(new TimeoutException("closeOrder"))(15.seconds) <*
-        sagaLogDao.createSagaStep("closeOrder", sagaId, result = None))
-        .when(!executed.contains("closeOrder"))
+      mkSagaRequest(orderServiceClient.closeOrder(userId, orderId, sagaId.toString), sagaId, "closeOrder", executed)
 
-    def refundPayments(executed: List[String], sagaId: Long) =
-      (paymentServiceClient
-        .refundPayments(userId, money, sagaId.toString)
-        .timeoutFail(new TimeoutException("refundPayments"))(8.seconds) <*
-        sagaLogDao.createSagaStep("refundPayments", sagaId, result = None)).when(!executed.contains("refundPayments"))
+    def refundPayments(executed: List[String], sagaId: Long) = mkSagaRequest(
+      paymentServiceClient.refundPayments(userId, money, sagaId.toString),
+      sagaId,
+      "refundPayments",
+      executed
+    )
 
-    def cancelLoyaltyPoints(executed: List[String], sagaId: Long) =
-      (loyaltyPointsServiceClient
-        .cancelLoyaltyPoints(userId, bonuses, sagaId.toString)
-        .timeoutFail(new TimeoutException("cancelLoyaltyPoints"))(8.seconds) <*
-        sagaLogDao.createSagaStep("cancelLoyaltyPoints", sagaId, result = None))
-        .when(!executed.contains("cancelLoyaltyPoints"))
+    def cancelLoyaltyPoints(executed: List[String], sagaId: Long) = mkSagaRequest(
+      loyaltyPointsServiceClient.cancelLoyaltyPoints(userId, bonuses, sagaId.toString),
+      sagaId,
+      "cancelLoyaltyPoints",
+      executed
+    )
 
     def reopenOrder(executed: List[String], sagaId: Long) =
-      (orderServiceClient
-        .reopenOrder(userId, orderId, sagaId.toString)
-        .timeoutFail(new TimeoutException("reopenOrder"))(8.seconds) <*
-        sagaLogDao.createSagaStep("reopenOrder", sagaId, result = None))
-        .when(!executed.contains("reopenOrder"))
+      mkSagaRequest(orderServiceClient.reopenOrder(userId, orderId, sagaId.toString), sagaId, "reopenOrder", executed)
 
     def buildSaga(sagaId: Long, executedSteps: List[String]) =
       for {
@@ -92,7 +86,7 @@ class OrderSagaCoordinatorImpl(
     import io.circe.syntax._
 
     val mdcLog = wrapMDC(logger, userId, orderId, sagaIdOpt)
-    val data = OrderSagaData(userId, orderId, money, bonuses).asJson
+    val data   = OrderSagaData(userId, orderId, money, bonuses).asJson
 
     for {
       _        <- mdcLog.info("Saga execution started")
@@ -109,7 +103,7 @@ class OrderSagaCoordinatorImpl(
     for {
       _     <- logger.info("Sagas recovery stared")
       sagas <- sagaLogDao.listUnfinishedSagas
-      _ <- logger.info(s"Found unfinished sagas: $sagas")
+      _     <- logger.info(s"Found unfinished sagas: $sagas")
       _ <- ZIO.foreachParN_(100)(sagas) { sagaInfo =>
             ZIO.fromEither(sagaInfo.data.as[OrderSagaData]).flatMap {
               case OrderSagaData(userId, orderId, money, bonuses) =>
@@ -126,17 +120,21 @@ class OrderSagaCoordinatorImpl(
 }
 
 object OrderSagaCoordinatorImpl extends CatsPlatform {
-  def apply(paymentServiceClient: PaymentServiceClient,
-            loyaltyPointsServiceClient: LoyaltyPointsServiceClient,
-            orderServiceClient: OrderServiceClient,
-            sagaLogDao: SagaLogDao): Task[OrderSagaCoordinatorImpl] =
+  def apply(
+    paymentServiceClient: PaymentServiceClient,
+    loyaltyPointsServiceClient: LoyaltyPointsServiceClient,
+    orderServiceClient: OrderServiceClient,
+    sagaLogDao: SagaLogDao
+  ): Task[OrderSagaCoordinatorImpl] =
     Slf4jLogger
       .create[Task]
       .map(
-        new OrderSagaCoordinatorImpl(paymentServiceClient,
-                                     loyaltyPointsServiceClient,
-                                     orderServiceClient,
-                                     sagaLogDao,
-                                     _)
+        new OrderSagaCoordinatorImpl(
+          paymentServiceClient,
+          loyaltyPointsServiceClient,
+          orderServiceClient,
+          sagaLogDao,
+          _
+        )
       )
 }
