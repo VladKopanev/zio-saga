@@ -5,10 +5,11 @@ import java.util.UUID
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import scalaz.zio.interop.CatsPlatform
-import scalaz.zio.{ Task, ZIO }
+import scalaz.zio.{ Schedule, Task, ZIO }
+import zio.saga.SagaDemo.Service.SagaError
 import zio.saga.example.client.{ LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient }
 import zio.saga.example.dao.SagaLogDao
-import zio.saga.example.model.OrderSagaData
+import zio.saga.example.model.{ OrderSagaData, SagaStep }
 
 import scala.concurrent.TimeoutException
 
@@ -38,49 +39,71 @@ class OrderSagaCoordinatorImpl(
 
     import scalaz.zio.duration._
 
-    def mkSagaRequest(request: TaskC[Unit], sagaId: Long, stepName: String, executedSteps: List[String]) =
-      (request.timeoutFail(new TimeoutException(stepName))(8.seconds) <*
-        sagaLogDao.createSagaStep(stepName, sagaId, result = None)).when(!executedSteps.contains(stepName))
+    def mkSagaRequest(
+      request: TaskC[Unit],
+      sagaId: Long,
+      stepName: String,
+      executedSteps: List[SagaStep],
+      compensating: Boolean = false
+    ) =
+      ZIO.fromOption(
+          executedSteps.find(step => step.name == stepName && !compensating).flatMap(_.failure).map(new SagaError(_))
+        ).flip *> request
+          .timeoutFail(new TimeoutException(stepName))(8.seconds)
+          .tapBoth(
+            e => sagaLogDao.createSagaStep(stepName, sagaId, result = None, failure = Some(e.getMessage)),
+            _ => sagaLogDao.createSagaStep(stepName, sagaId, result = None)
+          )
+          .when(!executedSteps.exists(_.name == stepName))
 
-    def collectPayments(executed: List[String], sagaId: Long) = mkSagaRequest(
+    def collectPayments(executed: List[SagaStep], sagaId: Long) = mkSagaRequest(
       paymentServiceClient.collectPayments(userId, money, sagaId.toString),
       sagaId,
       "collectPayments",
       executed
     )
 
-    def assignLoyaltyPoints(executed: List[String], sagaId: Long) = mkSagaRequest(
+    def assignLoyaltyPoints(executed: List[SagaStep], sagaId: Long) = mkSagaRequest(
       loyaltyPointsServiceClient.assignLoyaltyPoints(userId, bonuses, sagaId.toString),
       sagaId,
       "assignLoyaltyPoints",
       executed
     )
 
-    def closeOrder(executed: List[String], sagaId: Long) =
+    def closeOrder(executed: List[SagaStep], sagaId: Long) =
       mkSagaRequest(orderServiceClient.closeOrder(userId, orderId, sagaId.toString), sagaId, "closeOrder", executed)
 
-    def refundPayments(executed: List[String], sagaId: Long) = mkSagaRequest(
+    def refundPayments(executed: List[SagaStep], sagaId: Long) = mkSagaRequest(
       paymentServiceClient.refundPayments(userId, money, sagaId.toString),
       sagaId,
       "refundPayments",
-      executed
+      executed,
+      compensating = true
     )
 
-    def cancelLoyaltyPoints(executed: List[String], sagaId: Long) = mkSagaRequest(
+    def cancelLoyaltyPoints(executed: List[SagaStep], sagaId: Long) = mkSagaRequest(
       loyaltyPointsServiceClient.cancelLoyaltyPoints(userId, bonuses, sagaId.toString),
       sagaId,
       "cancelLoyaltyPoints",
-      executed
+      executed,
+      compensating = true
     )
 
-    def reopenOrder(executed: List[String], sagaId: Long) =
-      mkSagaRequest(orderServiceClient.reopenOrder(userId, orderId, sagaId.toString), sagaId, "reopenOrder", executed)
+    def reopenOrder(executed: List[SagaStep], sagaId: Long) =
+      mkSagaRequest(
+        orderServiceClient.reopenOrder(userId, orderId, sagaId.toString),
+        sagaId,
+        "reopenOrder",
+        executed,
+        compensating = true
+      )
 
-    def buildSaga(sagaId: Long, executedSteps: List[String]) =
+    val expSchedule = Schedule.exponential(1.second)
+    def buildSaga(sagaId: Long, executedSteps: List[SagaStep]) =
       for {
-        _ <- collectPayments(executedSteps, sagaId) compensate refundPayments(executedSteps, sagaId)
-        _ <- assignLoyaltyPoints(executedSteps, sagaId) compensate cancelLoyaltyPoints(executedSteps, sagaId)
-        _ <- closeOrder(executedSteps, sagaId) compensate reopenOrder(executedSteps, sagaId)
+        _ <- collectPayments(executedSteps, sagaId) retryableCompensate (refundPayments(executedSteps, sagaId), expSchedule)
+        _ <- assignLoyaltyPoints(executedSteps, sagaId) retryableCompensate (cancelLoyaltyPoints(executedSteps, sagaId), expSchedule)
+        _ <- closeOrder(executedSteps, sagaId) retryableCompensate (reopenOrder(executedSteps, sagaId), expSchedule)
       } yield ()
 
     import io.circe.syntax._
@@ -92,9 +115,9 @@ class OrderSagaCoordinatorImpl(
       _        <- mdcLog.info("Saga execution started")
       sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId, data))(ZIO.succeed)
       executed <- sagaLogDao.listExecutedSteps(sagaId)
-      _        <- buildSaga(sagaId, executed.map(_.name)).transact
-      _        <- sagaLogDao.finishSaga(sagaId)
-      _        <- mdcLog.info("Saga execution finished")
+      _ <- buildSaga(sagaId, executed).transact
+            .tapBoth(_ => sagaLogDao.finishSaga(sagaId), _ => sagaLogDao.finishSaga(sagaId))
+      _ <- mdcLog.info("Saga execution finished")
     } yield ()
 
   }

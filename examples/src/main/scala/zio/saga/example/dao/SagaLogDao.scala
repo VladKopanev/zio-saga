@@ -12,7 +12,12 @@ trait SagaLogDao {
 
   def startSaga(initiator: UUID, data: Json): ZIO[Any, Throwable, Long]
 
-  def createSagaStep(name: String, sagaId: Long, result: Option[Json]): ZIO[Any, Throwable, Unit]
+  def createSagaStep(
+    name: String,
+    sagaId: Long,
+    result: Option[Json],
+    failure: Option[String] = None
+  ): ZIO[Any, Throwable, Unit]
 
   def listExecutedSteps(sagaId: Long): ZIO[Any, Throwable, List[SagaStep]]
 
@@ -33,23 +38,27 @@ class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
   implicit val han = LogHandler.jdkLogHandler
 
   override def finishSaga(sagaId: Long): ZIO[Any, Throwable, Unit] =
-    sql"""UPDATE saga  SET "finishedAt" = now() WHERE id = $sagaId""".update.run.transact(xa).unit
+    sql"""UPDATE saga SET "finishedAt" = now() WHERE id = $sagaId""".update.run.transact(xa).unit
 
   override def startSaga(initiator: UUID, data: Json): ZIO[Any, Throwable, Long] =
-    sql"""INSERT INTO saga("initiator", "createdAt", "finishedAt", "data", "type") VALUES ($initiator, now(), null, $data, 'order')"""
-      .update
+    sql"""INSERT INTO saga("initiator", "createdAt", "finishedAt", "data", "type") 
+          VALUES ($initiator, now(), null, $data, 'order')""".update
       .withUniqueGeneratedKeys[Long]("id")
       .transact(xa)
 
-  override def createSagaStep(name: String, sagaId: Long, result: Option[Json]): ZIO[Any, Throwable, Unit] =
-    sql"""INSERT INTO saga_step("sagaId", "name", "result", "finishedAt") VALUES ($sagaId, $name, $result, now())"""
-      .update
-      .run
+  override def createSagaStep(
+    name: String,
+    sagaId: Long,
+    result: Option[Json],
+    failure: Option[String]
+  ): ZIO[Any, Throwable, Unit] =
+    sql"""INSERT INTO saga_step("sagaId", "name", "result", "finishedAt", "failure")
+          VALUES ($sagaId, $name, $result, now(), $failure)""".update.run
       .transact(xa)
       .unit
 
   override def listExecutedSteps(sagaId: Long): ZIO[Any, Throwable, List[SagaStep]] =
-    sql"""SELECT "sagaId", "name", "finishedAt", "result"
+    sql"""SELECT "sagaId", "name", "finishedAt", "result", "failure"
           from saga_step WHERE "sagaId" = $sagaId""".query[SagaStep].to[List].transact(xa)
 
   override def listUnfinishedSagas: ZIO[Any, Throwable, List[SagaInfo]] =
