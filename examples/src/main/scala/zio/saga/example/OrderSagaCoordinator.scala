@@ -49,7 +49,7 @@ class OrderSagaCoordinatorImpl(
       ZIO.fromOption(
           executedSteps.find(step => step.name == stepName && !compensating).flatMap(_.failure).map(new OrderSagaError(_))
         ).flip *> request
-          .timeoutFail(new TimeoutException(stepName))(8.seconds)
+          .timeoutFail(new TimeoutException(s"Execution Timeout occurred for $stepName step"))(maxRequestTimeout.seconds)
           .tapBoth(
             e => sagaLogDao.createSagaStep(stepName, sagaId, result = None, failure = Some(e.getMessage)),
             _ => sagaLogDao.createSagaStep(stepName, sagaId, result = None)
@@ -115,8 +115,13 @@ class OrderSagaCoordinatorImpl(
       _        <- mdcLog.info("Saga execution started")
       sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId, data))(ZIO.succeed)
       executed <- sagaLogDao.listExecutedSteps(sagaId)
-      _ <- buildSaga(sagaId, executed).transact
-            .tapBoth(_ => sagaLogDao.finishSaga(sagaId), _ => sagaLogDao.finishSaga(sagaId))
+      _ <- buildSaga(sagaId, executed).transact.tapBoth(
+        {
+          case e: OrderSagaError => sagaLogDao.finishSaga(sagaId)
+          case _ => ZIO.unit
+        },
+        _ => sagaLogDao.finishSaga(sagaId)
+      )
       _ <- mdcLog.info("Saga execution finished")
     } yield ()
 
