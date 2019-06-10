@@ -5,13 +5,12 @@ import java.util.UUID
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import scalaz.zio.interop.CatsPlatform
-import scalaz.zio.{Schedule, Task, ZIO}
-import zio.saga.example.client.{LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient}
+import scalaz.zio.{ Schedule, Task, ZIO }
+import zio.saga.example.client.{ LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient }
 import zio.saga.example.dao.SagaLogDao
-import zio.saga.example.model.{OrderSagaData, OrderSagaError, SagaStep}
+import zio.saga.example.model.{ OrderSagaData, OrderSagaError, SagaStep }
 
 import scala.concurrent.TimeoutException
-import scala.util.control.NonFatal
 
 trait OrderSagaCoordinator {
   def runSaga(userId: UUID, orderId: BigInt, money: BigDecimal, bonuses: Double, sagaIdOpt: Option[Long]): TaskC[Unit]
@@ -24,6 +23,7 @@ class OrderSagaCoordinatorImpl(
   loyaltyPointsServiceClient: LoyaltyPointsServiceClient,
   orderServiceClient: OrderServiceClient,
   sagaLogDao: SagaLogDao,
+  maxRequestTimeout: Int,
   logger: StructuredLogger[Task]
 ) extends OrderSagaCoordinator {
 
@@ -149,7 +149,8 @@ object OrderSagaCoordinatorImpl extends CatsPlatform {
     paymentServiceClient: PaymentServiceClient,
     loyaltyPointsServiceClient: LoyaltyPointsServiceClient,
     orderServiceClient: OrderServiceClient,
-    sagaLogDao: SagaLogDao
+    sagaLogDao: SagaLogDao,
+    maxRequestTimeout: Int
   ): Task[OrderSagaCoordinatorImpl] =
     Slf4jLogger
       .create[Task]
@@ -159,6 +160,7 @@ object OrderSagaCoordinatorImpl extends CatsPlatform {
           loyaltyPointsServiceClient,
           orderServiceClient,
           sagaLogDao,
+          maxRequestTimeout,
           _
         )
       )

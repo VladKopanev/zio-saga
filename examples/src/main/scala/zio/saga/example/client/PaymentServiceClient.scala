@@ -15,25 +15,27 @@ trait PaymentServiceClient {
   def refundPayments(userId: UUID, amount: BigDecimal, traceId: String): TaskC[Unit]
 }
 
-class PaymentServiceClientStub(logger: Logger[Task]) extends PaymentServiceClient {
+class PaymentServiceClientStub(logger: Logger[Task],
+                               maxRequestTimeout: Int,
+                               flaky: Boolean) extends PaymentServiceClient {
 
   override def collectPayments(userId: UUID, amount: BigDecimal, traceId: String): TaskC[Unit] =
     for {
-      _ <- randomSleep
-      _ <- randomFail("collectPayments")
+      _ <- randomSleep(maxRequestTimeout)
+      _ <- randomFail("collectPayments").when(flaky)
       _ <- logger.info(s"Payments collected from user #$userId")
     } yield ()
 
   override def refundPayments(userId: UUID, amount: BigDecimal, traceId: String): TaskC[Unit] =
     for {
-      _ <- randomSleep
-      _ <- randomFail("refundPayments")
+      _ <- randomSleep(maxRequestTimeout)
+      _ <- randomFail("refundPayments").when(flaky)
       _ <- logger.info(s"Payments refunded to user #$userId")
     } yield ()
 }
 
 object PaymentServiceClientStub extends CatsPlatform {
 
-  def apply(): Task[PaymentServiceClient] =
-    Slf4jLogger.create[Task].map(new PaymentServiceClientStub(_))
+  def apply(maxRequestTimeout: Int, flaky: Boolean): Task[PaymentServiceClient] =
+    Slf4jLogger.create[Task].map(new PaymentServiceClientStub(_, maxRequestTimeout, flaky))
 }

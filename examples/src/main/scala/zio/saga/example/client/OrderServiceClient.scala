@@ -15,23 +15,24 @@ trait OrderServiceClient {
   def reopenOrder(userId: UUID, orderId: BigInt, traceId: String): TaskC[Unit]
 }
 
-class OrderServiceClientStub(logger: Logger[Task]) extends OrderServiceClient {
+class OrderServiceClientStub(logger: Logger[Task], maxRequestTimeout: Int, flaky: Boolean) extends OrderServiceClient {
 
   override def closeOrder(userId: UUID, orderId: BigInt, traceId: String): TaskC[Unit] =
     for {
-      _ <- randomSleep
-      _ <- randomFail("closeOrder")
+      _ <- randomSleep(maxRequestTimeout)
+      _ <- randomFail("closeOrder").when(flaky)
       _ <- logger.info(s"Order #$orderId closed")
     } yield ()
 
   override def reopenOrder(userId: UUID, orderId: BigInt, traceId: String): TaskC[Unit] =
     for {
-      _ <- randomSleep
-      _ <- randomFail("reopenOrder")
+      _ <- randomSleep(maxRequestTimeout)
+      _ <- randomFail("reopenOrder").when(flaky)
       _ <- logger.info(s"Order #$orderId reopened")
     } yield ()
 }
 
 object OrderServiceClientStub extends CatsPlatform {
-  def apply(): Task[OrderServiceClientStub] = Slf4jLogger.create[Task].map(new OrderServiceClientStub(_))
+  def apply(maxRequestTimeout: Int, flaky: Boolean): Task[OrderServiceClientStub] =
+    Slf4jLogger.create[Task].map(new OrderServiceClientStub(_, maxRequestTimeout, flaky))
 }

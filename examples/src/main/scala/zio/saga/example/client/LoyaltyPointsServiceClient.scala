@@ -15,25 +15,25 @@ trait LoyaltyPointsServiceClient {
   def cancelLoyaltyPoints(userId: UUID, amount: Double, traceId: String): TaskC[Unit]
 }
 
-class LoyaltyPointsServiceClientStub(logger: Logger[Task]) extends LoyaltyPointsServiceClient {
+class LoyaltyPointsServiceClientStub(logger: Logger[Task], maxRequestTimeout: Int, flaky: Boolean) extends LoyaltyPointsServiceClient {
 
   override def assignLoyaltyPoints(userId: UUID, amount: Double, traceId: String): TaskC[Unit] =
     for {
-      _ <- randomSleep
-      _ <- randomFail("assignLoyaltyPoints")
+      _ <- randomSleep(maxRequestTimeout)
+      _ <- randomFail("assignLoyaltyPoints").when(flaky)
       _ <- logger.info(s"Loyalty points assigned to user $userId")
     } yield ()
 
   override def cancelLoyaltyPoints(userId: UUID, amount: Double, traceId: String): TaskC[Unit] =
     for {
-      _ <- randomSleep
-      _ <- randomFail("cancelLoyaltyPoints")
+      _ <- randomSleep(maxRequestTimeout)
+      _ <- randomFail("cancelLoyaltyPoints").when(flaky)
       _ <- logger.info(s"Loyalty points canceled for user $userId")
     } yield ()
 
 }
 
 object LoyaltyPointsServiceClientStub extends CatsPlatform {
-  def apply(): Task[LoyaltyPointsServiceClientStub] =
-    Slf4jLogger.create[Task].map(new LoyaltyPointsServiceClientStub(_))
+  def apply(maxRequestTimeout: Int, flaky: Boolean): Task[LoyaltyPointsServiceClientStub] =
+    Slf4jLogger.create[Task].map(new LoyaltyPointsServiceClientStub(_, maxRequestTimeout, flaky))
 }

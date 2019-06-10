@@ -13,6 +13,12 @@ package object client {
       _             <- ZIO.sleep(randomSeconds.seconds)
     } yield ()
 
+  def randomSleep(maxTimeout: Int): TaskC[Unit] =
+    for {
+      randomSeconds <- ZIO.effectTotal(Random.nextInt(maxTimeout))
+      _             <- ZIO.sleep(randomSeconds.seconds)
+    } yield ()
+
   def randomFail(operationName: String): Task[Unit] =
     for {
       randomInt <- ZIO.effectTotal(Random.nextInt(100))

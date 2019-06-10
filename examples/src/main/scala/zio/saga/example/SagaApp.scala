@@ -13,13 +13,17 @@ object SagaApp extends CatsPlatform with App {
 
   implicit val runtime = this
 
-  override def run(args: List[String]): ZIO[Environment, Nothing, Int] =
+  override def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
+    val flakyClient= sys.env.getOrElse("FLAKY_CLIENT", "false").toBoolean
+    val clientMaxReqTimeout = sys.env.getOrElse("CLIENT_MAX_REQUEST_TIMEOUT_SEC", "10").toInt
+    val sagaMaxReqTimeout = sys.env.getOrElse("SAGA_MAX_REQUEST_TIMEOUT_SEC", "12").toInt
+
     (for {
-      paymentService <- PaymentServiceClientStub()
-      loyaltyPoints  <- LoyaltyPointsServiceClientStub()
-      orderService   <- OrderServiceClientStub()
+      paymentService <- PaymentServiceClientStub(clientMaxReqTimeout, flakyClient)
+      loyaltyPoints  <- LoyaltyPointsServiceClientStub(clientMaxReqTimeout, flakyClient)
+      orderService   <- OrderServiceClientStub(clientMaxReqTimeout, flakyClient)
       logDao         = new SagaLogDaoImpl
-      orderSEC       <- OrderSagaCoordinatorImpl(paymentService, loyaltyPoints, orderService, logDao)
+      orderSEC       <- OrderSagaCoordinatorImpl(paymentService, loyaltyPoints, orderService, logDao, sagaMaxReqTimeout)
       app            = new SagaEndpoint(orderSEC).service
       _              <- orderSEC.recoverSagas.fork
       _              <- BlazeServerBuilder[TaskC].bindHttp(8042).withHttpApp(app).serve.compile.drain
@@ -27,4 +31,6 @@ object SagaApp extends CatsPlatform with App {
       e => putStrLn(s"Saga Coordinator fails with error $e, stopping server...").const(1),
       _ => putStrLn(s"Saga Coordinator finished successfully, stopping server...").const(0)
     )
+  }
+
 }
