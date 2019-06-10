@@ -115,15 +115,12 @@ class OrderSagaCoordinatorImpl(
       _        <- mdcLog.info("Saga execution started")
       sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId, data))(ZIO.succeed)
       executed <- sagaLogDao.listExecutedSteps(sagaId)
-      _ <- buildSaga(sagaId, executed).transact.tapBoth(
-        {
-          case e: OrderSagaError => sagaLogDao.finishSaga(sagaId)
-          case _ => ZIO.unit
-        },
-        _ => sagaLogDao.finishSaga(sagaId)
-      )
+      _ <- buildSaga(sagaId, executed).transact.tapBoth({
+            case e: OrderSagaError => sagaLogDao.finishSaga(sagaId)
+            case _                 => ZIO.unit
+          }, _ => sagaLogDao.finishSaga(sagaId))
       _ <- mdcLog.info("Saga execution finished")
-    } yield ()
+  } yield ()
 
   }
 
