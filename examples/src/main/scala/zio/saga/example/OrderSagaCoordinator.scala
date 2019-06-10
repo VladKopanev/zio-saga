@@ -6,10 +6,9 @@ import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import scalaz.zio.interop.CatsPlatform
 import scalaz.zio.{ Schedule, Task, ZIO }
-import zio.saga.SagaDemo.Service.SagaError
 import zio.saga.example.client.{ LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient }
 import zio.saga.example.dao.SagaLogDao
-import zio.saga.example.model.{ OrderSagaData, SagaStep }
+import zio.saga.example.model.{ OrderSagaData, OrderSagaError, SagaStep }
 
 import scala.concurrent.TimeoutException
 
@@ -47,7 +46,7 @@ class OrderSagaCoordinatorImpl(
       compensating: Boolean = false
     ) =
       ZIO.fromOption(
-          executedSteps.find(step => step.name == stepName && !compensating).flatMap(_.failure).map(new SagaError(_))
+          executedSteps.find(step => step.name == stepName && !compensating).flatMap(_.failure).map(new OrderSagaError(_))
         ).flip *> request
           .timeoutFail(new TimeoutException(stepName))(8.seconds)
           .tapBoth(
