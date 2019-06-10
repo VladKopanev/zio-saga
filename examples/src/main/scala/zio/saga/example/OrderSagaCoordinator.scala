@@ -5,12 +5,13 @@ import java.util.UUID
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import scalaz.zio.interop.CatsPlatform
-import scalaz.zio.{ Schedule, Task, ZIO }
-import zio.saga.example.client.{ LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient }
+import scalaz.zio.{Schedule, Task, ZIO}
+import zio.saga.example.client.{LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient}
 import zio.saga.example.dao.SagaLogDao
-import zio.saga.example.model.{ OrderSagaData, OrderSagaError, SagaStep }
+import zio.saga.example.model.{OrderSagaData, OrderSagaError, SagaStep}
 
 import scala.concurrent.TimeoutException
+import scala.util.control.NonFatal
 
 trait OrderSagaCoordinator {
   def runSaga(userId: UUID, orderId: BigInt, money: BigDecimal, bonuses: Double, sagaIdOpt: Option[Long]): TaskC[Unit]
@@ -129,7 +130,9 @@ class OrderSagaCoordinatorImpl(
       _ <- ZIO.foreachParN_(100)(sagas) { sagaInfo =>
             ZIO.fromEither(sagaInfo.data.as[OrderSagaData]).flatMap {
               case OrderSagaData(userId, orderId, money, bonuses) =>
-                runSaga(userId, orderId, money, bonuses, Some(sagaInfo.id))
+                runSaga(userId, orderId, money, bonuses, Some(sagaInfo.id)).catchSome {
+                  case e: OrderSagaError => ZIO.unit
+                }
             }
           }
       _ <- logger.info("Sagas recovery finished")
