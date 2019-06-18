@@ -1,18 +1,67 @@
 name := "zio-saga"
 
+val mainScala = "2.12.8"
+val allScala  = Seq("2.11.12", mainScala)
+
 lazy val commonSettings = Seq(
   organization := "com.vladkopanev",
   version := "0.1.0",
-  scalaVersion := "2.12.8",
+  scalaVersion := mainScala,
+  scalacOptions ++= Seq(
+    "-deprecation",
+    "-encoding",
+    "UTF-8",
+    "-explaintypes",
+    "-Yrangepos",
+    "-feature",
+    "-Xfuture",
+    "-language:higherKinds",
+    "-language:existentials",
+    "-unchecked",
+    "-Xlint:_,-type-parameter-shadow",
+    "-Ywarn-numeric-widen",
+    "-Ywarn-unused",
+    "-Ywarn-value-discard"
+  ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 11)) =>
+      Seq(
+        "-Yno-adapted-args",
+        "-Ypartial-unification",
+        "-Ywarn-inaccessible",
+        "-Ywarn-infer-any",
+        "-Ywarn-nullary-override",
+        "-Ywarn-nullary-unit"
+      )
+    case Some((2, 12)) =>
+      Seq(
+        "-Xsource:2.13",
+        "-Yno-adapted-args",
+        "-Ypartial-unification",
+        "-Ywarn-extra-implicit",
+        "-Ywarn-inaccessible",
+        "-Ywarn-infer-any",
+        "-Ywarn-nullary-override",
+        "-Ywarn-nullary-unit",
+        "-opt-inline-from:<source>",
+        "-opt-warnings",
+        "-opt:l:inline"
+      )
+    case _ => Nil
+  }),
   scalacOptions ++= Seq("-Ypartial-unification"),
   resolvers ++= Seq(Resolver.sonatypeRepo("snapshots"), Resolver.sonatypeRepo("releases"))
 )
+
+lazy val root = project
+  .in(file("."))
+  .dependsOn(examples)
+  .aggregate(core)
 
 lazy val core = project
   .in(file("core"))
   .settings(
     commonSettings,
-    crossScalaVersions := Seq("2.12.8", "2.11.12"),
+    crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
       "org.scalaz"    %% "scalaz-zio" % "1.0-RC5",
       "org.scalactic" %% "scalactic"  % "3.0.5",
