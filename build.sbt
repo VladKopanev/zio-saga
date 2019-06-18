@@ -17,6 +17,7 @@ lazy val commonSettings = Seq(
     "-Xfuture",
     "-language:higherKinds",
     "-language:existentials",
+    "-language:implicitConversions",
     "-unchecked",
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
