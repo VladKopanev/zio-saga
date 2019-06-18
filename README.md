@@ -1,5 +1,8 @@
 # ZIO-SAGA
 
+[![codecov](https://codecov.io/gh/VladKopanev/zio-saga/branch/master/graph/badge.svg)](https://codecov.io/gh/VladKopanev/zio-saga)
+[![Build Status](https://travis-ci.com/VladKopanev/zio-saga.svg?branch=master)](https://travis-ci.com/VladKopanev/zio-saga)
+
 This library helps to implement Saga Pattern in purely functional way.
 
 It allows you to compose your requests and compensating actions in one distributed transaction
