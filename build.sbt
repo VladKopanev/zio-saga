@@ -57,6 +57,7 @@ lazy val root = project
   .in(file("."))
   .dependsOn(examples)
   .aggregate(core)
+  .settings(coverageExcludedFiles := ".*example*")
 
 lazy val core = project
   .in(file("core"))
