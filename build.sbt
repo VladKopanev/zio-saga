@@ -57,12 +57,12 @@ lazy val root = project
   .in(file("."))
   .dependsOn(examples)
   .aggregate(core)
-  .settings(coverageExcludedFiles := ".*example*")
 
 lazy val core = project
   .in(file("core"))
   .settings(
     commonSettings,
+    coverageEnabled := true,
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
       "org.scalaz"    %% "scalaz-zio" % "1.0-RC5",
@@ -80,6 +80,7 @@ lazy val examples = project
   .in(file("examples"))
   .settings(
     commonSettings,
+    coverageEnabled := false,
     libraryDependencies ++= Seq(
       "ch.qos.logback"    % "logback-classic"          % "1.2.3",
       "io.chrisdavenport" %% "log4cats-core"           % log4CatsVersion,

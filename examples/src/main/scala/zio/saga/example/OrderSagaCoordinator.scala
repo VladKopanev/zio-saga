@@ -4,7 +4,6 @@ import java.util.UUID
 
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import scalaz.zio.interop.CatsPlatform
 import scalaz.zio.{ Schedule, Task, ZIO }
 import zio.saga.example.client.{ LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient }
 import zio.saga.example.dao.SagaLogDao
@@ -120,7 +119,7 @@ class OrderSagaCoordinatorImpl(
             case _                 => ZIO.unit
           }, _ => sagaLogDao.finishSaga(sagaId))
       _ <- mdcLog.info("Saga execution finished")
-  } yield ()
+    } yield ()
 
   }
 
@@ -146,7 +145,9 @@ class OrderSagaCoordinatorImpl(
     )
 }
 
-object OrderSagaCoordinatorImpl extends CatsPlatform {
+object OrderSagaCoordinatorImpl {
+  import scalaz.zio.interop.catz._
+
   def apply(
     paymentServiceClient: PaymentServiceClient,
     loyaltyPointsServiceClient: LoyaltyPointsServiceClient,

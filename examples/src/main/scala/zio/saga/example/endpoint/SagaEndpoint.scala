@@ -1,15 +1,15 @@
 package zio.saga.example.endpoint
-import org.http4s.{ HttpApp, HttpRoutes }
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
-import scalaz.zio.interop.CatsPlatform
-import zio.saga.example.{ OrderSagaCoordinator, TaskC }
-import zio.saga.example.model.OrderInfo
 import org.http4s.implicits._
+import org.http4s.{ HttpApp, HttpRoutes }
+import scalaz.zio.interop.catz._
+import zio.saga.example.model.OrderInfo
+import zio.saga.example.{ OrderSagaCoordinator, TaskC }
 
-class SagaEndpoint(orderSagaCoordinator: OrderSagaCoordinator) extends CatsPlatform with Http4sDsl[TaskC] {
+final class SagaEndpoint(orderSagaCoordinator: OrderSagaCoordinator) extends Http4sDsl[TaskC] {
 
-  implicit val decoder = jsonOf[TaskC, OrderInfo]
+  private implicit val decoder = jsonOf[TaskC, OrderInfo]
 
   val service: HttpApp[TaskC] = HttpRoutes
     .of[TaskC] {

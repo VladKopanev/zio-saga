@@ -7,12 +7,6 @@ package object client {
 
   import scalaz.zio.duration._
 
-  def randomSleep: TaskC[Unit] =
-    for {
-      randomSeconds <- ZIO.effectTotal(Random.nextInt(10))
-      _             <- ZIO.sleep(randomSeconds.seconds)
-    } yield ()
-
   def randomSleep(maxTimeout: Int): TaskC[Unit] =
     for {
       randomSeconds <- ZIO.effectTotal(Random.nextInt(maxTimeout))

@@ -3,7 +3,6 @@ import java.util.UUID
 
 import io.circe.Json
 import org.postgresql.util.PGobject
-import scalaz.zio.interop.CatsPlatform
 import scalaz.zio.{ Task, ZIO }
 import zio.saga.example.model.{ SagaInfo, SagaStep }
 
@@ -24,10 +23,11 @@ trait SagaLogDao {
   def listUnfinishedSagas: ZIO[Any, Throwable, List[SagaInfo]]
 }
 
-class SagaLogDaoImpl extends CatsPlatform with SagaLogDao {
+class SagaLogDaoImpl extends SagaLogDao {
   import doobie._
   import doobie.implicits._
   import doobie.postgres.implicits._
+  import scalaz.zio.interop.catz._
 
   val xa = Transactor.fromDriverManager[Task](
     "org.postgresql.Driver",
