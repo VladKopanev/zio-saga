@@ -18,7 +18,7 @@ class SagaTest extends FlatSpec {
 
   "Saga#zipPar" should "successfully run two Sagas" in new TestRuntime {
     val saga = bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)
-    unsafeRun(saga.transact) shouldBe (FlightPayment, HotelPayment)
+    unsafeRun(saga.transact) shouldBe ((FlightPayment, HotelPayment))
   }
 
   "Saga#zipWithPar" should "successfully run two Sagas in parallel" in new DefaultRuntime {
@@ -190,7 +190,7 @@ object SagaTest {
 
   def bookCar: IO[CarBookingError, PaymentInfo] = IO.succeed(CarPayment)
 
-  def collectPayments(paymentInfo: PaymentInfo*): IO[PaymentFailedError, Unit] = IO.unit
+  def collectPayments(paymentInfo: PaymentInfo*): IO[PaymentFailedError, Unit] = IO.succeed(paymentInfo).unit
 
   def cancelFlight: Compensator[Any, FlightBookingError] = IO.unit
 
@@ -206,6 +206,6 @@ object SagaTest {
 
   def cancelCar(postAction: UIO[Any]): Compensator[Any, CarBookingError] = postAction *> IO.unit
 
-  def refundPayments(paymentInfo: PaymentInfo*): Compensator[Any, PaymentFailedError] = IO.unit
+  def refundPayments(paymentInfo: PaymentInfo*): Compensator[Any, PaymentFailedError] = IO.succeed(paymentInfo).unit
 
 }
