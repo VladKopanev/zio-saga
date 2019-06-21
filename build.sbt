@@ -21,8 +21,8 @@ inThisBuild(
     scmInfo := Some(
       ScmInfo(url("https://github.com/VladKopanev/zio-saga"), "scm:git:git@github.com/VladKopanev/zio-saga.git")
     ),
-    pgpPublicRing := file("/tmp/public.asc"),
-    pgpSecretRing := file("/tmp/secret.asc"),
+    pgpPublicRing := file("./travis/local.pubring.asc"),
+    pgpSecretRing := file("./travis/local.secring.asc"),
     releaseEarlyWith := SonatypePublisher
   )
 )
