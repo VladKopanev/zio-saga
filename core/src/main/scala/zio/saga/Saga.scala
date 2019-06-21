@@ -3,7 +3,7 @@ package zio.saga
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import Saga.Compensator
-import scalaz.zio.{Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO}
+import scalaz.zio.{ Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO }
 
 /**
  * A Saga is an immutable structure that models a distributed transaction.
@@ -116,6 +116,11 @@ object Saga {
     collectAllPar(sagas)
 
   /**
+   * Constructs Saga without compensation that fails with an error.
+   * */
+  def fail[R, E](error: E): Saga[R, E, Nothing] = noCompensate(ZIO.fail(error))
+
+  /**
    * Constructs a Saga that applies the function `f` to each element of the `Iterable[A]` in parallel,
    * and returns the results in a new `List[B]`.
    *
@@ -141,6 +146,11 @@ object Saga {
     val retry: Compensator[R with Clock, E] = compensator.retry(schedule.unit)
     compensate(request, retry)
   }
+
+  /**
+   * Constructs Saga without compensation that succeeds with a strict value.
+   * */
+  def succeed[R, A](value: A): Saga[R, Nothing, A] = noCompensate(ZIO.succeed(value))
 
   implicit def IOtoCompensable[E, A](io: IO[E, A]): Compensable[Any, E, A] = new Compensable(io)
 
