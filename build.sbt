@@ -1,10 +1,33 @@
+import com.typesafe.sbt.SbtPgp.autoImportImpl.pgpSecretRing
+import sbt.file
+
 name := "zio-saga"
 
 val mainScala = "2.12.8"
 val allScala  = Seq("2.11.12", mainScala)
 
+inThisBuild(
+  List(
+    organization := "com.vladkopanev",
+    licenses := List("MIT License" -> url("https://opensource.org/licenses/MIT")),
+    developers := List(
+      Developer(
+        "VladKopanev",
+        "Vladislav Kopanev",
+        "ivengo53@gmail.com",
+        url("http://vladkopanev.com")
+      )
+    ),
+    scmInfo := Some(
+      ScmInfo(url("https://github.com/VladKopanev/zio-saga"), "scm:git:git@github.com/VladKopanev/zio-saga.git")
+    ),
+    pgpPublicRing := file("/tmp/public.asc"),
+    pgpSecretRing := file("/tmp/secret.asc"),
+    releaseEarlyWith := SonatypePublisher
+  )
+)
+
 lazy val commonSettings = Seq(
-  organization := "com.vladkopanev",
   version := "0.1.0",
   scalaVersion := mainScala,
   scalacOptions ++= Seq(
