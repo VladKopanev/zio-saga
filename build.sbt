@@ -28,7 +28,6 @@ inThisBuild(
 )
 
 lazy val commonSettings = Seq(
-  version := "0.1.0",
   scalaVersion := mainScala,
   scalacOptions ++= Seq(
     "-deprecation",
