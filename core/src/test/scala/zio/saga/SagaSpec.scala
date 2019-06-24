@@ -6,9 +6,9 @@ import scalaz.zio.duration.Duration
 import Saga.Compensator
 import scalaz.zio.{DefaultRuntime, IO, Ref, Schedule, UIO, ZIO}
 
-class SagaTest extends FlatSpec {
+class SagaSpec extends FlatSpec {
   import Saga._
-  import SagaTest._
+  import SagaSpec._
   import scalaz.zio.duration._
 
   "Saga#map" should "change the result value with provided function" in new TestRuntime {
@@ -21,11 +21,10 @@ class SagaTest extends FlatSpec {
     unsafeRun(saga.transact) shouldBe ((FlightPayment, HotelPayment))
   }
 
-  "Saga#zipWithPar" should "successfully run two Sagas in parallel" in new DefaultRuntime {
-    val sleep = ZIO.sleep(1000.millis).provide(Environment)
+  "Saga#zipWithPar" should "successfully run two Sagas in parallel" in new TestRuntime {
 
-    val saga = (sleep *> bookFlight compensate cancelFlight)
-      .zipWithPar(sleep *> bookHotel compensate cancelHotel)((_, _) => ())
+    val saga = (sleep(1000.millis) *> bookFlight compensate cancelFlight)
+      .zipWithPar(sleep(1000.millis) *> bookHotel compensate cancelHotel)((_, _) => ())
 
     val start = System.currentTimeMillis()
     unsafeRun(saga.transact)
@@ -203,7 +202,7 @@ trait TestRuntime extends DefaultRuntime {
   def sleep(d: Duration): UIO[Unit] = ZIO.sleep(d).provide(Environment)
 }
 
-object SagaTest {
+object SagaSpec {
   sealed trait SagaError {
     def message: String
   }
