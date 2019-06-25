@@ -12,6 +12,7 @@ scala:
 branches:
   only:
     - master
+    -  /^v.*/
 
 script:
 - sbt clean coverage test coverageReport
