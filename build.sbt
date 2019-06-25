@@ -9,6 +9,7 @@ val allScala  = Seq("2.11.12", mainScala)
 inThisBuild(
   List(
     organization := "com.vladkopanev",
+    homepage := Some(url("https://github.com/VladKopanev/zio-saga")),
     licenses := List("MIT License" -> url("https://opensource.org/licenses/MIT")),
     developers := List(
       Developer(
