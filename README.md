@@ -4,14 +4,14 @@
 | --- | --- | --- |
 | [![Build Status][Badge-Travis]][Link-Travis] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] |
 
-This library helps to implement Saga Pattern in purely functional way.
+Build your transactions in purely functional way.
 
-It allows you to compose your requests and compensating actions in one distributed transaction
-without boilerplate.
+ZIO-SAGA allows you to compose your requests and compensating actions from Saga pattern in one transaction
+without any boilerplate.
 
 
 Backed by ZIO it adds a simple abstraction called Saga that takes the responsibility of
-proper composition of both requests to other systems and associated compensating actions.
+proper composition of effects and associated compensating actions.
 
 # Getting started
 
