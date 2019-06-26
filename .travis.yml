@@ -24,6 +24,19 @@ before_install:
   tar xv -C travis -f travis/secrets.tar;
   fi
 
+cache:
+  directories:
+    - $HOME/.sbt/1.0/dependency
+    - $HOME/.sbt/boot/scala*
+    - $HOME/.sbt/launchers
+    - $HOME/.rvm
+    - website/node_modules
+
+before_cache:
+  - find $HOME/.sbt -name "*.lock" -type f -delete
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -type f -delete
+  - rm -rf $HOME/.ivy2/local
+
 env:
   global:
   - secure: e1WmzDGzT3JUwCWWFyLS7IBEHYJUcCcaoip/0gMcdmlhB8g5dAjWGo8Sj3ofylRcyb+0quGZZNkh//ByOSsvig0tyZBOTSUA+R62LcXfkurpxlr21fopXMhJ6CZxU6YxVgYn7QEKbvcct5QCTz8E6trp1CuuwiqMEt5joh6h5D3AESbFz4ZB8EsdMhVDJAiGK+jBaLSaoTnzbhIvXDttl4k+CuRdQ5YGUbrFyYEJsDHj2ms30NQggdvaArqSflCPtZxREDgweuWcBK9HzyZD51+sLEFG/CH0MhcYFAtmFVdD3JeaOaE33au7PXHOpyVKErhqbr7ZhhB9vBfsWitnasZXWqAS6TBWekMp/2GLDFz+QWMOgfgg6t//SvdNFe07biZO5NiJ52l+kbxm+BswA80XXZ6Nrbs2VIjdvasxUUJ9ud1hvwMtMuIrwJcG3Jg0sxOaXdwmLahpn6BIw8nYyOhDDvtr0utbUkhMtNWv23MzWnwU1+BVCcFglH0KFyG30i3cSe6S73CRJv6ILE0xRjXVCGstZAYq0we9lA5NcQtPYQlAtsunTfyd6XR1RFn4cQaCtMVrGwG2XUz5Stq3y0Hd9P+wBaZdstl17dEgjHMdP758N8dsR/8saOt3w4i5ktsS8f9LACvGfW5a09VnQWkowDgKokSF8lmn0CPxDa0=
