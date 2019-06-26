@@ -1,7 +1,8 @@
 # ZIO-SAGA
 
-[![codecov](https://codecov.io/gh/VladKopanev/zio-saga/branch/master/graph/badge.svg)](https://codecov.io/gh/VladKopanev/zio-saga)
-[![Build Status](https://travis-ci.com/VladKopanev/zio-saga.svg?branch=master)](https://travis-ci.com/VladKopanev/zio-saga)
+| CI | Coverage | Release |
+| --- | --- | --- |
+| [![Build Status][Badge-Travis]][Link-Travis] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] |
 
 This library helps to implement Saga Pattern in purely functional way.
 
@@ -11,6 +12,12 @@ without boilerplate.
 
 Backed by ZIO it adds a simple abstraction called Saga that takes the responsibility of
 proper composition of both requests to other systems and associated compensating actions.
+
+# Getting started
+
+Add zio-saga dependency to your `build.sbt`:
+
+`libraryDependencies += "com.vladkopanev" %% "zio-saga-core" % "0.1.0"`
 
 # Example of usage:
 
@@ -41,9 +48,9 @@ def orderSaga(): IO[SagaError, Unit] = {
 
 Looks pretty simple and straightforward, `orElse` function tries to recover the original request if it fails.
 We have covered every request with a compensating action. But what if last request fails? We know for sure that corresponding 
-compensating action `reopenOrder` will be executed, but when other compensating actions would be run? Right, they would not, 
+compensation `reopenOrder` will be executed, but when other compensations would be run? Right, they would not be triggered, 
 because the error would not be propagated higher, thus not triggering compensating actions. That is not what we want, we want 
-all compensating actions to be triggered in Saga, whatever error occurred.
+full rollback logic to be triggered in Saga, whatever error occurred.
  
 Second try, this time let's somehow trigger all compensating actions.
   
@@ -57,8 +64,8 @@ def orderSaga(): IO[SagaError, Unit] = {
   }
 ```
 
-This works, we trigger all compensating actions by failing after each compensating action. 
-But the implementation itself looks awful, we lost expressiveness in the call-back hell 
+This works, we trigger all rollback actions by failing after each. 
+But the implementation itself looks awful, we lost expressiveness in the call-back hell, imagine 15 saga steps implemented in such manner,
 and we also lost the original error that we wanted to show to the user.
 
 You can solve this problems in different ways, but you will encounter a number of difficulties, and your code still would 
@@ -85,10 +92,12 @@ def orderSaga(): IO[SagaError, Unit] = {
 
 `compensate` pairs request IO with compensating action IO and returns a new `Saga` object which then you can compose with other
 `Sagas`.
-To materialize `Saga` object to `ZIO` when it's complete we need to use `transact` method.
+To materialize `Saga` object to `ZIO` when it's complete it is required to use `transact` method.
 
-As you can see with `ZIO-SAGA` the process of building your own Sagas is really simple. ZIO-Sagas are composable, 
-boilerplate-free and intuitively understandable for people that aware of Saga pattern.
+As you can see with `ZIO-SAGA` the process of building your Sagas is greatly simplified comparably to ad-hoc solutions. 
+ZIO-Sagas are composable, boilerplate-free and intuitively understandable for people that aware of Saga pattern.
+This library let you compose transaction steps both in sequence and in parallel, this feature gives you more powerful control 
+over transaction execution.
 
 # Additional capabilities
 
@@ -114,7 +123,14 @@ Because of that `ZIO-SAGA` contains methods for parallel execution of requests.
     val bookingSaga     = flight zipPar hotel
 ```
 
-### TODO:
-- Help user to deal with timeout failures
-- Log sagas actions to database and restore in case of failure
+### See in the next releases:
+- Even more powerful control over compensation execution 
 - Cats interop
+
+[Link-Codecov]: https://codecov.io/gh/VladKopanev/zio-saga?branch=master "Codecov"
+[Link-Travis]: https://travis-ci.com/VladKopanev/zio-saga "circleci"
+[Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/com/vladkopanev/zio-saga-core_2.12/ "Sonatype Releases"
+
+[Badge-Codecov]: https://codecov.io/gh/VladKopanev/zio-saga/branch/master/graph/badge.svg "Codecov" 
+[Badge-Travis]: https://travis-ci.com/VladKopanev/zio-saga.svg?branch=master "Codecov" 
+[Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/com.vladkopanev/zio-saga-core_2.12.svg "Sonatype Releases"
