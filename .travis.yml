@@ -2,12 +2,14 @@ sudo: false
 
 language: scala
 
-jdk:
-- openjdk8
--
-scala:
-- 2.12.8
-- 2.11.12
+matrix:
+  include:
+    # Scala 2.11, JVM
+    - jdk: oraclejdk8
+      scala: 2.11.12
+    # Scala 2.12, JVM
+    - jdk: oraclejdk8
+      scala: 2.12.8
 
 branches:
   only:
