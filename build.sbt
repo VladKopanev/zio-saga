@@ -85,6 +85,7 @@ lazy val core = project
   .in(file("core"))
   .settings(
     commonSettings,
+    name := "zio-saga-core",
     coverageEnabled := true,
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
