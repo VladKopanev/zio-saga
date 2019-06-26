@@ -81,6 +81,8 @@ lazy val root = project
   .dependsOn(examples)
   .aggregate(core)
 
+lazy val zioVersion = "1.0-RC5"
+
 lazy val core = project
   .in(file("core"))
   .settings(
@@ -89,10 +91,22 @@ lazy val core = project
     coverageEnabled := true,
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
-      "org.scalaz"    %% "scalaz-zio" % "1.0-RC5",
+      "org.scalaz"    %% "scalaz-zio" % zioVersion,
       "org.scalatest" %% "scalatest"  % "3.0.5" % "test"
     )
   )
+
+lazy val interopCats = project
+    .in(file("interop-cats"))
+    .settings(
+      commonSettings,
+      libraryDependencies ++= Seq(
+        "org.scalaz"    %% "scalaz-zio"  % zioVersion,
+        "org.typelevel" %% "cats-effect" % "1.3.0" % Optional,
+        compilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
+      )
+    )
+    .dependsOn(core % "test->test;compile->compile")
 
 val http4sVersion   = "0.20.1"
 val log4CatsVersion = "0.3.0"
@@ -113,7 +127,7 @@ lazy val examples = project
       "org.http4s"        %% "http4s-circe"            % http4sVersion,
       "org.http4s"        %% "http4s-dsl"              % http4sVersion,
       "org.http4s"        %% "http4s-blaze-server"     % http4sVersion,
-      "org.scalaz"        %% "scalaz-zio-interop-cats" % "1.0-RC5",
+      "org.scalaz"        %% "scalaz-zio-interop-cats" % zioVersion,
       "org.tpolecat"      %% "doobie-core"             % doobieVersion,
       "org.tpolecat"      %% "doobie-hikari"           % doobieVersion,
       "org.tpolecat"      %% "doobie-postgres"         % doobieVersion,
