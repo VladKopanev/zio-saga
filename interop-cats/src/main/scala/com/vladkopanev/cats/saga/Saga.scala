@@ -1,8 +1,8 @@
-package zio.saga.cats
+package com.vladkopanev.cats.saga
 
 import cats._
 import cats.implicits._
-import zio.saga.cats.Saga.{FlatMap, Step, Suceeded}
+import Saga.{ FlatMap, Step, Suceeded }
 
 import scala.util.control.NonFatal
 
@@ -15,30 +15,29 @@ sealed abstract class Saga[F[_], A] {
   def map[B](f: A => B): Saga[F, B] =
     Saga.FlatMap(this, (a: A) => Saga.Suceeded(f(a)))
 
+  def flatten[B](implicit ev: A <:< Saga[F, B]): Saga[F, B] =
+    Saga.FlatMap(this, a => ev(a))
+
   def transact(implicit F: MonadError[F, Throwable]): F[A] = {
-    def interpret[X](saga: Saga[F, X], compensations: List[F[Unit]]): F[(X, List[F[Unit]])] = saga match {
-      case Suceeded(value) => F.pure((value, List.empty))
+    def interpret[X](saga: Saga[F, X]): F[(X, F[Unit])] = saga match {
+      case Suceeded(value) => F.pure((value, F.unit))
       case Step(action, compensator) =>
-        action.map(x => (x, compensator(Right(x)) :: compensations)).onError {
-          case Saga.Halted(_) => F.unit
-          case NonFatal(ex) => compensator(Left(ex)) *> F.raiseError(Saga.Halted(ex))
+        action.map(x => (x, compensator(Right(x)))).onError {
+          case NonFatal(ex) => compensator(Left(ex)) *> F.raiseError(ex)
         }
       case FlatMap(chained: Saga[F, Any], continuation: Function1[Any, Saga[F, X]]) =>
-        interpret(chained, compensations).flatMap {
-          case (v, acc) => interpret(continuation(v), acc).onError {
-            case Saga.Halted(_) => F.unit
-            case NonFatal(ex) => acc.sequence *> F.raiseError(Saga.Halted(ex))
+        interpret(chained).flatMap {
+          case (v, currentCompensator) => interpret(continuation(v)).onError {
+            case NonFatal(ex) => currentCompensator *> F.raiseError(ex)
           }
         }
     }
 
-    interpret(this, List.empty).map(_._1)
+    interpret(this).map(_._1)
   }
 }
 
 object Saga {
-
-  final case class Halted(throwable: Throwable) extends Throwable
 
   private case class Suceeded[F[_], A](value: A) extends Saga[F, A]
   private case class Step[F[_], A](action: F[A], compensate: Either[Throwable, A] => F[Unit]) extends Saga[F, A]
@@ -55,6 +54,16 @@ object Saga {
 
   def noCompensate[F[_], A](comp: F[A])(implicit F: InvariantMonoidal[F]): Saga[F, A] =
     Step(comp, _ => F.unit)
+
+  implicit class Compensable[F[_], A](val request: F[A]) {
+
+    def compensate(compensator: F[Unit]): Saga[F, A] = Saga.compensate(request, compensator)
+
+    def noCompensate(implicit F: InvariantMonoidal[F]): Saga[F, A] = Saga.noCompensate(request)
+
+    def compensate(compensation: Either[Throwable, A] => F[Unit]): Saga[F, A] =
+      Saga.compensate(request, compensation)
+  }
 
   implicit def monad[F[_]]: Monad[Saga[F, ?]] = new Monad[Saga[F, ?]] {
     override def pure[A](x: A): Saga[F, A] = Saga.succeed(x)
