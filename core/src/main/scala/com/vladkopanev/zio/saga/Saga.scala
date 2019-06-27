@@ -1,4 +1,4 @@
-package zio.saga
+package com.vladkopanev.zio.saga
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock

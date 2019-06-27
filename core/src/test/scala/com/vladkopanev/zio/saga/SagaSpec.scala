@@ -1,4 +1,4 @@
-package zio.saga
+package com.vladkopanev.zio.saga
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
@@ -182,7 +182,6 @@ class SagaSpec extends FlatSpec {
 
   "Saga#fail" should "construct saga that will fail" in new TestRuntime {
     val failFlightBooking = IO.fail(FlightBookingError())
-    val stub              = 1
 
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])

@@ -17,7 +17,7 @@ branches:
     -  /^v.*/
 
 script:
-- sbt clean coverage test coverageReport
+- sbt clean coverage test coverageReport coverageOff
 
 before_install:
 - if [ $TRAVIS_PULL_REQUEST = 'false' ]; then

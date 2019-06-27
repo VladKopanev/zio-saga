@@ -1,13 +1,13 @@
-package zio.saga.example
+package com.vladkopanev.zio.saga.example
 
 import java.util.UUID
 
+import com.vladkopanev.zio.saga.example.client.{LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient}
+import com.vladkopanev.zio.saga.example.dao.SagaLogDao
+import com.vladkopanev.zio.saga.example.model.{OrderSagaData, OrderSagaError, SagaStep}
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import scalaz.zio.{ Schedule, Task, ZIO }
-import zio.saga.example.client.{ LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient }
-import zio.saga.example.dao.SagaLogDao
-import zio.saga.example.model.{ OrderSagaData, OrderSagaError, SagaStep }
+import scalaz.zio.{Schedule, Task, ZIO}
 
 import scala.concurrent.TimeoutException
 
@@ -26,7 +26,7 @@ class OrderSagaCoordinatorImpl(
   logger: StructuredLogger[Task]
 ) extends OrderSagaCoordinator {
 
-  import zio.saga.Saga._
+  import com.vladkopanev.zio.saga.Saga._
 
   def runSaga(
     userId: UUID,

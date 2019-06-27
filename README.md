@@ -80,7 +80,7 @@ With `ZIO-SAGA` we could do it like so:
 
 ```
 def orderSaga(): IO[SagaError, Unit] = {
-    import Saga._
+    import com.vladkopanev.zio.saga.Saga._
 
     (for {
       _ <- collectPayments(2d, 2) compensate refundPayments(2d, 2)

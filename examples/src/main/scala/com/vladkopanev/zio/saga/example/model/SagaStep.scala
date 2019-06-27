@@ -1,4 +1,5 @@
-package zio.saga.example.model
+package com.vladkopanev.zio.saga.example.model
+
 import java.time.Instant
 
 import io.circe.Json

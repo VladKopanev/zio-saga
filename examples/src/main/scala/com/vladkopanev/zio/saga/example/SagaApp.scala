@@ -1,15 +1,18 @@
-package zio.saga.example
-
-import scalaz.zio.console._
+package com.vladkopanev.zio.saga.example
+import com.vladkopanev.zio.saga.example.client.{
+    LoyaltyPointsServiceClientStub,
+    OrderServiceClientStub,
+    PaymentServiceClientStub
+  }
+import com.vladkopanev.zio.saga.example.dao.SagaLogDaoImpl
+import com.vladkopanev.zio.saga.example.endpoint.SagaEndpoint
+import scalaz.zio.interop.catz._
+import scalaz.zio.console.putStrLn
 import scalaz.zio.{ App, ZIO }
-import zio.saga.example.client.{ LoyaltyPointsServiceClientStub, OrderServiceClientStub, PaymentServiceClientStub }
-import zio.saga.example.dao.SagaLogDaoImpl
-import zio.saga.example.endpoint.SagaEndpoint
 
 object SagaApp extends App {
 
   import org.http4s.server.blaze._
-  import scalaz.zio.interop.catz._
 
   implicit val runtime = this
 

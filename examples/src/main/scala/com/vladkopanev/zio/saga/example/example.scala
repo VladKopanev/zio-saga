@@ -1,4 +1,4 @@
-package zio.saga
+package com.vladkopanev.zio.saga
 import scalaz.zio.TaskR
 import scalaz.zio.clock.Clock
 
