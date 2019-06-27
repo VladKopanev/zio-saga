@@ -1,11 +1,11 @@
-package zio.saga.example.client
+package com.vladkopanev.zio.saga.example.client
 
 import java.util.UUID
 
+import com.vladkopanev.zio.saga.example.TaskC
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import scalaz.zio.Task
-import zio.saga.example.TaskC
 
 trait PaymentServiceClient {
 

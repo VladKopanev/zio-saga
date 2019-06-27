@@ -1,10 +1,11 @@
-package zio.saga.example.dao
+package com.vladkopanev.zio.saga.example.dao
+
 import java.util.UUID
 
+import com.vladkopanev.zio.saga.example.model.{ SagaInfo, SagaStep }
 import io.circe.Json
 import org.postgresql.util.PGobject
 import scalaz.zio.{ Task, ZIO }
-import zio.saga.example.model.{ SagaInfo, SagaStep }
 
 trait SagaLogDao {
   def finishSaga(sagaId: Long): ZIO[Any, Throwable, Unit]

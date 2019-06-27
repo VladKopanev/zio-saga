@@ -1,5 +1,6 @@
-package zio.saga.example
-import scalaz.zio.{Task, ZIO}
+package com.vladkopanev.zio.saga.example
+
+import scalaz.zio.{ Task, ZIO }
 
 import scala.util.Random
 
@@ -16,6 +17,6 @@ package object client {
   def randomFail(operationName: String): Task[Unit] =
     for {
       randomInt <- ZIO.effectTotal(Random.nextInt(100))
-      _ <- if(randomInt % 10 == 0) ZIO.fail(new RuntimeException(s"Failed to execute $operationName")) else ZIO.unit
+      _         <- if (randomInt % 10 == 0) ZIO.fail(new RuntimeException(s"Failed to execute $operationName")) else ZIO.unit
     } yield ()
 }

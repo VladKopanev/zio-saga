@@ -1,11 +1,12 @@
-package zio.saga.example.endpoint
+package com.vladkopanev.zio.saga.example.endpoint
+
+import com.vladkopanev.zio.saga.example.{ OrderSagaCoordinator, TaskC }
+import com.vladkopanev.zio.saga.example.model.OrderInfo
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.implicits._
 import org.http4s.{ HttpApp, HttpRoutes }
 import scalaz.zio.interop.catz._
-import zio.saga.example.model.OrderInfo
-import zio.saga.example.{ OrderSagaCoordinator, TaskC }
 
 final class SagaEndpoint(orderSagaCoordinator: OrderSagaCoordinator) extends Http4sDsl[TaskC] {
 
