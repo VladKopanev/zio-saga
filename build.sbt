@@ -123,4 +123,4 @@ lazy val examples = project
       compilerPlugin("com.olegpy"      %% "better-monadic-for" % "0.3.0-M4")
     )
   )
-  .dependsOn(core % "test->test;compile->compile")
+  .dependsOn(core % "compile->compile")
