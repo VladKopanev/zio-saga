@@ -86,7 +86,6 @@ lazy val core = project
   .settings(
     commonSettings,
     name := "zio-saga-core",
-    coverageEnabled := true,
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
       "org.scalaz"    %% "scalaz-zio" % "1.0-RC5",
