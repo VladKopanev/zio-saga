@@ -6,7 +6,6 @@ import Saga.{ FlatMap, Step, Suceeded }
 
 import scala.util.control.NonFatal
 
-
 sealed abstract class Saga[F[_], A] {
 
   def flatMap[B](f: A => Saga[F, B]): Saga[F, B] =
@@ -23,12 +22,12 @@ sealed abstract class Saga[F[_], A] {
       case Suceeded(value) => F.pure((value, F.unit))
       case Step(action, compensator) =>
         action.map(x => (x, compensator(Right(x)))).onError {
-          case NonFatal(ex) => compensator(Left(ex)) *> F.raiseError(ex)
+          case NonFatal(ex) => compensator(Left(ex))
         }
-      case FlatMap(chained: Saga[F, Any], continuation: Function1[Any, Saga[F, X]]) =>
+      case FlatMap(chained: Saga[F, Any], continuation: (Any => Saga[F, X])) =>
         interpret(chained).flatMap {
-          case (v, currentCompensator) => interpret(continuation(v)).onError {
-            case NonFatal(ex) => currentCompensator *> F.raiseError(ex)
+          case (v, prevStepCompensator) => interpret(continuation(v)).onError {
+            case NonFatal(ex) => prevStepCompensator
           }
         }
     }
