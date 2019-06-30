@@ -126,7 +126,7 @@ object Saga {
    *
    */
   def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => Saga[R, E, B]): Saga[R, E, List[B]] =
-    as.foldRight[Saga[R, E, List[B]]](Saga.noCompensate(IO.effectTotal(Nil))) { (a, io) =>
+    as.foldRight[Saga[R, E, List[B]]](Saga.noCompensate(IO.succeed(Nil))) { (a, io) =>
       fn(a).zipWithPar(io)((b, bs) => b :: bs)
     }
 

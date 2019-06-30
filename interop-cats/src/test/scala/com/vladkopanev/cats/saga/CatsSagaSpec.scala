@@ -2,7 +2,7 @@ package com.vladkopanev.cats.saga
 import cats.effect.concurrent.Ref
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
-import cats.effect.{IO, Timer}
+import cats.effect.{ContextShift, IO, Timer}
 import cats.syntax.all._
 import com.vladkopanev.cats.saga.CatsSagaSpec._
 import com.vladkopanev.cats.saga.Saga._
@@ -34,10 +34,16 @@ class CatsSagaSpec extends FlatSpec {
     actionLog shouldBe Vector("flight canceled", "car canceled", "hotel canceled")
   }
 
+  "Saga#zipPar" should "successfully run two Sagas" in new TestRuntime {
+    val saga = bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)
+    saga.transact.unsafeRunSync() shouldBe ((FlightPayment, HotelPayment))
+  }
+
 }
 
 trait TestRuntime {
   implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
+  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 }
 
 
