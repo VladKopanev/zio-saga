@@ -155,7 +155,7 @@ class SagaSpec extends FlatSpec {
       hotel     = bookHotelS compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
       car       = bookCarS compensate cancelCar(actionLog.update(_ :+ "car canceled"))
       car2      = bookCarS2 compensate cancelCar(actionLog.update(_ :+ "car2 canceled"))
-      _         <- Saga.collectAllPar(flight, hotel, car, car2).transact.orElse(IO.unit)
+      _         <- Saga.collectAllPar(List(flight, hotel, car, car2)).transact.orElse(IO.unit)
       log       <- actionLog.get
     } yield log
 
