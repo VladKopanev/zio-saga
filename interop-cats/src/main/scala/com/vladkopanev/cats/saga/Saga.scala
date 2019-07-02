@@ -64,25 +64,26 @@ sealed abstract class Saga[F[_], A] {
   def zipWithPar[B, C](that: Saga[F, B])(f: (A, B) => C): Saga[F, C] =
     Saga.Par(this, that, f)
 
-  private def race[F[_], A, B, C](fA: F[A], fB: F[B])(
+  private def race[A, B, C](fA: F[A], fB: F[B])(
     leftDone: (Either[Throwable, A], Fiber[F, B]) => F[C],
     rightDone: (Either[Throwable, B], Fiber[F, A]) => F[C]
   )(implicit F: Concurrent[F]) = {
     def arbiter[A1, B1](f: (Either[Throwable, A1], Fiber[F, B1]) => F[C],
                         loser: Fiber[F, B1],
                         race: Ref[F, Int],
-                        done: Deferred[F, C])(res: Either[Throwable, A1]): F[Unit] =
-      race.modify(c => (c + 1) -> (if (c > 0) F.unit else f(res, loser) >>= done.complete))
+                        done: Deferred[F, Either[Throwable, C]])(res: Either[Throwable, A1]): F[Unit] =
+      race.modify(c => (c + 1) -> (if (c > 0) F.unit else f(res, loser).attempt >>= done.complete)).flatten
 
     for {
-      done <- Deferred[F, C]
+      done <- Deferred[F, Either[Throwable, C]]
       race <- Ref.of[F, Int](0)
       c <- for {
             left  <- F.start(fA)
             right <- F.start(fB)
             _     <- F.start(left.join.attempt.flatMap(arbiter(leftDone, right, race, done)))
             _     <- F.start(right.join.attempt.flatMap(arbiter(rightDone, left, race, done)))
-            c     <- done.get
+            res   <- done.get
+            c     <- res.fold[F[C]](F.raiseError, F.pure)
           } yield c
     } yield c
   }
