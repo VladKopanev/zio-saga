@@ -1,9 +1,10 @@
 package com.vladkopanev.cats.saga
 
 import cats._
-import cats.effect.Concurrent
+import cats.effect.concurrent.{Deferred, Ref}
+import cats.effect.{Concurrent, Fiber}
 import cats.implicits._
-import com.vladkopanev.cats.saga.Saga.{ FlatMap, Par, Step, Suceeded }
+import com.vladkopanev.cats.saga.Saga.{FlatMap, Par, Step, Suceeded}
 
 import scala.util.control.NonFatal
 
@@ -33,10 +34,25 @@ sealed abstract class Saga[F[_], A] {
             }
         }
       case Par(left: Saga[F, Any], right: Saga[F, Any], combine: ((Any, Any) => X)) =>
-        F.racePair(interpret(left), interpret(right)).flatMap {
-          case Left(((a, aComp), fiberB))  => fiberB.join.map { case (b, bComp) => (combine(a, b), bComp *> aComp) }
-          case Right((fiberA, (b, bComp))) => fiberA.join.map { case (a, aComp) => (combine(a, b), aComp *> bComp) }
+        def coordinate[A, B, C](f: (A, B) => C)(
+          fasterSaga: Either[Throwable, (A, F[Unit])],
+          slowerSaga: Fiber[F, (B, F[Unit])]
+        ): F[(C, F[Unit])] = fasterSaga match {
+          case Right((a, compA)) =>
+            slowerSaga.join.attempt.flatMap[(C, F[Unit])] {
+              case Right((b, compB)) => F.pure(f(a, b) -> compB *> compA)
+              case Left(e) => compA *> e.raiseError(F)
+            }
+          case Left(e) =>
+            slowerSaga.join.attempt.flatMap[(C, F[Unit])] {
+              case Right((b, compB)) => compB *> e.raiseError(F)
+              case Left(ea) => ea.addSuppressed(e); ea.raiseError(F)
+            }
         }
+
+        val fliped = (b: Any, a: Any) => combine(a, b)
+
+        race(interpret(left), interpret(right))(coordinate(combine), coordinate(fliped))
     }
 
     interpret(this).map(_._1)
@@ -47,6 +63,29 @@ sealed abstract class Saga[F[_], A] {
 
   def zipWithPar[B, C](that: Saga[F, B])(f: (A, B) => C): Saga[F, C] =
     Saga.Par(this, that, f)
+
+  private def race[F[_], A, B, C](fA: F[A], fB: F[B])(
+    leftDone: (Either[Throwable, A], Fiber[F, B]) => F[C],
+    rightDone: (Either[Throwable, B], Fiber[F, A]) => F[C]
+  )(implicit F: Concurrent[F]) = {
+    def arbiter[A1, B1](f: (Either[Throwable, A1], Fiber[F, B1]) => F[C],
+                        loser: Fiber[F, B1],
+                        race: Ref[F, Int],
+                        done: Deferred[F, C])(res: Either[Throwable, A1]): F[Unit] =
+      race.modify(c => (c + 1) -> (if (c > 0) F.unit else f(res, loser) >>= done.complete))
+
+    for {
+      done <- Deferred[F, C]
+      race <- Ref.of[F, Int](0)
+      c <- for {
+            left  <- F.start(fA)
+            right <- F.start(fB)
+            _     <- F.start(left.join.attempt.flatMap(arbiter(leftDone, right, race, done)))
+            _     <- F.start(right.join.attempt.flatMap(arbiter(rightDone, left, race, done)))
+            c     <- done.get
+          } yield c
+    } yield c
+  }
 }
 
 object Saga {
