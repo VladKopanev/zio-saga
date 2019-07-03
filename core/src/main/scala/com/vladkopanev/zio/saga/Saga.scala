@@ -1,8 +1,8 @@
 package com.vladkopanev.zio.saga
 
+import com.vladkopanev.zio.saga.Saga.Compensator
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
-import Saga.Compensator
 import scalaz.zio.{ Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO }
 
 /**
@@ -99,7 +99,27 @@ object Saga {
    * Constructs new Saga from action and compensating action.
    * */
   def compensate[R, E, A](request: ZIO[R, E, A], compensator: Compensator[R, E]): Saga[R, E, A] =
-    new Saga(request.bimap((_, compensator), (_, compensator)))
+    compensate(request, _ => compensator)
+
+  /**
+   * Constructs new Saga from action and compensation function that will be applied the result of this request.
+   * */
+  def compensate[R, E, A](action: ZIO[R, E, A], compensation: Either[E, A] => Compensator[R, E]): Saga[R, E, A] =
+    new Saga(action.bimap(e => (e, compensation(Left(e))), a => (a, compensation(Right(a)))))
+
+  /**
+   * Constructs new Saga from action and compensation function that will be applied only to failed result of this request.
+   * If given action succeeds associated compensating action would not be executed during the compensation phase.
+   * */
+  def compensateIfFail[R, E, A](action: ZIO[R, E, A], compensation: E => Compensator[R, E]): Saga[R, E, A] =
+    compensate(action, result => result.fold(compensation, _ => ZIO.unit))
+
+  /**
+   * Constructs new Saga from action and compensation function that will be applied only to successful result of this request.
+   * If given action fails associated compensating action would not be executed during the compensation phase.
+   * */
+  def compensateIfSuccess[R, E, A](action: ZIO[R, E, A], compensation: A => Compensator[R, E]): Saga[R, E, A] =
+    compensate(action, result => result.fold(_ => ZIO.unit, compensation))
 
   /**
    * Runs all Sagas in iterable in parallel and collects
@@ -126,7 +146,7 @@ object Saga {
    *
    */
   def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => Saga[R, E, B]): Saga[R, E, List[B]] =
-    as.foldRight[Saga[R, E, List[B]]](Saga.noCompensate(IO.effectTotal(Nil))) { (a, io) =>
+    as.foldRight[Saga[R, E, List[B]]](Saga.noCompensate(IO.succeed(Nil))) { (a, io) =>
       fn(a).zipWithPar(io)((b, bs) => b :: bs)
     }
 
