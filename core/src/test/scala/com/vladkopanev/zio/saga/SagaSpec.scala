@@ -155,7 +155,7 @@ class SagaSpec extends FlatSpec {
       hotel     = bookHotelS compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
       car       = bookCarS compensate cancelCar(actionLog.update(_ :+ "car canceled"))
       car2      = bookCarS2 compensate cancelCar(actionLog.update(_ :+ "car2 canceled"))
-      _         <- Saga.collectAllPar(flight, hotel, car, car2).transact.orElse(IO.unit)
+      _         <- Saga.collectAllPar(List(flight, hotel, car, car2)).transact.orElse(IO.unit)
       log       <- actionLog.get
     } yield log
 
@@ -194,6 +194,70 @@ class SagaSpec extends FlatSpec {
 
     val actionLog = unsafeRun(sagaIO)
     actionLog shouldBe Vector.empty
+  }
+
+  "Saga#compensateIfFail" should "construct saga step that executes it's compensation if it's requests fails" in new TestRuntime {
+    val failCar = IO.fail(CarBookingError())
+    val sagaIO = for {
+      actionLog <- Ref.make(Vector.empty[String])
+      _ <- (for {
+        _ <- bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+        _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+        _ <- failCar compensateIfFail ((_: SagaError) => cancelCar(actionLog.update(_ :+ "car canceled")))
+      } yield ()).transact.orElse(ZIO.unit)
+      log <- actionLog.get
+    } yield log
+
+    val actionLog = unsafeRun(sagaIO)
+    actionLog shouldBe Vector("car canceled", "hotel canceled", "flight canceled")
+  }
+
+  it should "construct saga step that do not executes it's compensation if it's request succeeds" in new TestRuntime {
+    val failFlightBooking = IO.fail(FlightBookingError())
+    val sagaIO = for {
+      actionLog <- Ref.make(Vector.empty[String])
+      _ <- (for {
+        _ <- bookCar compensateIfFail ((_: SagaError) => cancelCar(actionLog.update(_ :+ "car canceled")))
+        _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+        _ <- failFlightBooking compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+      } yield ()).transact.orElse(ZIO.unit)
+      log <- actionLog.get
+    } yield log
+
+    val actionLog = unsafeRun(sagaIO)
+    actionLog shouldBe Vector("flight canceled", "hotel canceled")
+  }
+
+  "Saga#compensateIfSuccess" should "construct saga step that executes it's compensation if it's requests succeeds" in new TestRuntime {
+    val failFlightBooking = IO.fail(FlightBookingError())
+    val sagaIO = for {
+      actionLog <- Ref.make(Vector.empty[String])
+      _ <- (for {
+        _ <- bookCar compensateIfSuccess ((_: PaymentInfo) => cancelCar(actionLog.update(_ :+ "car canceled")))
+        _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+        _ <- failFlightBooking compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+      } yield ()).transact.orElse(ZIO.unit)
+      log <- actionLog.get
+    } yield log
+
+    val actionLog = unsafeRun(sagaIO)
+    actionLog shouldBe Vector("flight canceled", "hotel canceled", "car canceled")
+  }
+
+  it should "construct saga step that do not executes it's compensation if it's request fails" in new TestRuntime {
+    val failCar = IO.fail(CarBookingError())
+    val sagaIO = for {
+      actionLog <- Ref.make(Vector.empty[String])
+      _ <- (for {
+        _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+        _ <- bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+        _ <- failCar compensateIfSuccess ((_: PaymentInfo) => cancelCar(actionLog.update(_ :+ "car canceled")))
+      } yield ()).transact.orElse(ZIO.unit)
+      log <- actionLog.get
+    } yield log
+
+    val actionLog = unsafeRun(sagaIO)
+    actionLog shouldBe Vector("flight canceled", "hotel canceled")
   }
 }
 

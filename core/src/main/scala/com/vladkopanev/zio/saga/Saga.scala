@@ -99,7 +99,7 @@ object Saga {
    * Constructs new Saga from action and compensating action.
    * */
   def compensate[R, E, A](request: ZIO[R, E, A], compensator: Compensator[R, E]): Saga[R, E, A] =
-    compensate(request, _ => compensator)
+    compensate(request, (_: Either[E, A]) => compensator)
 
   /**
    * Constructs new Saga from action and compensation function that will be applied the result of this request.
@@ -112,14 +112,14 @@ object Saga {
    * If given action succeeds associated compensating action would not be executed during the compensation phase.
    * */
   def compensateIfFail[R, E, A](action: ZIO[R, E, A], compensation: E => Compensator[R, E]): Saga[R, E, A] =
-    compensate(action, result => result.fold(compensation, _ => ZIO.unit))
+    compensate(action, (result: Either[E, A]) => result.fold(compensation, _ => ZIO.unit))
 
   /**
    * Constructs new Saga from action and compensation function that will be applied only to successful result of this request.
    * If given action fails associated compensating action would not be executed during the compensation phase.
    * */
   def compensateIfSuccess[R, E, A](action: ZIO[R, E, A], compensation: A => Compensator[R, E]): Saga[R, E, A] =
-    compensate(action, result => result.fold(_ => ZIO.unit, compensation))
+    compensate(action, (result: Either[E, A]) => result.fold(_ => ZIO.unit, compensation))
 
   /**
    * Runs all Sagas in iterable in parallel and collects
@@ -172,6 +172,7 @@ object Saga {
    * */
   def succeed[R, A](value: A): Saga[R, Nothing, A] = noCompensate(ZIO.succeed(value))
 
+  // $COVERAGE-OFF$
   implicit def IOtoCompensable[E, A](io: IO[E, A]): Compensable[Any, E, A] = new Compensable(io)
 
   implicit def ZIOtoCompensable[R, E, A](zio: ZIO[R, E, A]): Compensable[R, E, A] = new Compensable(zio)
@@ -181,12 +182,24 @@ object Saga {
   implicit def TaskRtoCompensable[R, A](taskR: TaskR[R, A]): Compensable[R, Throwable, A] = new Compensable(taskR)
 
   implicit def TaskToCompensable[A](taskR: Task[A]): Compensable[Any, Throwable, A] = new Compensable(taskR)
+  // $COVERAGE-ON$
 
   /**
     * Extension methods for IO requests.
     * */
   class Compensable[-R, +E, +A](val request: ZIO[R, E, A]) extends AnyVal {
-    def compensate[R1 <: R, E1 >: E](c: Compensator[R1, E1]): Saga[R1, E1, A] = Saga.compensate(request, c)
+
+    def compensate[R1 <: R, E1 >: E](c: Compensator[R1, E1]): Saga[R1, E1, A] =
+      Saga.compensate(request, c)
+
+    def compensate[R1 <: R, E1 >: E](compensation: Either[E1, A] => Compensator[R1, E1]): Saga[R1, E1, A] =
+      Saga.compensate(request, compensation)
+
+    def compensateIfFail[R1 <: R, E1 >: E](compensation: E1 => Compensator[R1, E1]): Saga[R1, E1, A] =
+      Saga.compensateIfFail(request, compensation)
+
+    def compensateIfSuccess[R1 <: R, E1 >: E](compensation: A => Compensator[R1, E1]): Saga[R1, E1, A] =
+      Saga.compensateIfSuccess(request, compensation)
 
     def retryableCompensate[R1 <: R, E1 >: E](
       c: Compensator[R1, E1],
