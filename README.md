@@ -133,4 +133,4 @@ Because of that `ZIO-SAGA` contains methods for parallel execution of requests.
 
 [Badge-Codecov]: https://codecov.io/gh/VladKopanev/zio-saga/branch/master/graph/badge.svg "Codecov" 
 [Badge-Travis]: https://travis-ci.com/VladKopanev/zio-saga.svg?branch=master "Codecov" 
-[Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/com.vladkopanev/zio-saga-core_2.12.svg "Sonatype Releases"
+[Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/com.vladkopanev/zio-saga-core_2.11.svg "Sonatype Releases"
