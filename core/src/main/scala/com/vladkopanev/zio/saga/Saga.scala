@@ -53,37 +53,56 @@ final class Saga[-R, +E, +A] private (
     zipWithPar(that)((a, b) => (a, b))
 
   /**
-   * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`.
+    * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`.
+    * Both compensating actions would be executed in case of failure.
+    * */
+  def zipWithPar[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])(f: (A, B) => C): Saga[R1, E1, C] = {
+    zipWithParAll(that)(f)((a, b) => a.run *> b)
+  }
+
+  /**
+   * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`
+   * and combining the compensating actions with function `g` (this allows user to choose a strategy of running both
+   * compensating actions e.g. in sequence or in parallel).
    * Both compensating actions would be executed in case of failure.
    * */
-  def zipWithPar[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])(f: (A, B) => C): Saga[R1, E1, C] = {
+  def zipWithParAll[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])
+                                        (f: (A, B) => C)
+                                        (g: (Compensator[R1, E1], Compensator[R1, E1]) => Compensator[R1, E1]): Saga[R1, E1, C] = {
     def coordinate[A1, B1, C1](f: (A1, B1) => C1)(
       fasterSaga: Exit[(E1, Compensator[R1, E1]), (A1, Compensator[R1, E1])],
       slowerSaga: Fiber[(E1, Compensator[R1, E1]), (B1, Compensator[R1, E1])]
     ): ZIO[R1, (E1, Compensator[R1, E1]), (C1, Compensator[R1, E1])] =
       fasterSaga match {
         case Exit.Success((a, compA)) =>
-          slowerSaga.join.bimap({ case (e, compB) => (e, compB *> compA) }, {
-            case (b, compB)                       => (f(a, b), compB *> compA)
-          })
+          slowerSaga.join.bimap(
+            { case (e, compB) => (e, g(compA, compB)) },
+            { case (b, compB) => (f(a, b), g(compA, compB)) }
+          )
         case Exit.Failure(cause) =>
           def extractCompensatorFrom(c: Cause[(E1, Compensator[R1, E1])]): Compensator[R1, E1] =
             c.failures.headOption.map[Compensator[R1, E1]](_._2).getOrElse(ZIO.dieMessage("Compensator was lost"))
-          //TODO we can't use interrupt here because we won't get a compensation action in case
-          //IO was still running and interrupted
+          /* we can't use interrupt here because we won't get a compensation action in case
+             IO was still running and interrupted */
           slowerSaga.await.flatMap {
             case Exit.Success((_, compB)) =>
-              ZIO.halt(cause.map { case (e, compA) => (e, compB *> compA) })
+              ZIO.halt(cause.map { case (e, compA) => (e, g(compA, compB)) })
             case Exit.Failure(loserCause) =>
               val compA    = extractCompensatorFrom(cause)
               val compB    = extractCompensatorFrom(loserCause)
-              val combined = compB *> compA
-              ZIO.halt((cause && loserCause).map { case (e, _) => (e, combined) })
+              ZIO.halt((cause && loserCause).map { case (e, _) => (e, g(compA, compB)) })
           }
       }
-    val g = (b: B, a: A) => f(a, b)
-    new Saga(request.raceWith(that.request)(coordinate(f), coordinate(g)))
+
+    val h = (b: B, a: A) => f(a, b)
+    new Saga(request.raceWith(that.request)(coordinate(f), coordinate(h)))
   }
+
+  /*
+    Run   : Parallel  | Sequential
+    OnFail: Interrupt | Continue
+
+   */
 
   /**
    * Materializes this Saga to ZIO effect.
