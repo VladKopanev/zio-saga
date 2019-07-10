@@ -57,7 +57,7 @@ final class Saga[-R, +E, +A] private (
     * Both compensating actions would be executed in case of failure.
     * */
   def zipWithPar[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])(f: (A, B) => C): Saga[R1, E1, C] = {
-    zipWithParAll(that)(f)((a, b) => a.run *> b)
+    zipWithParAll(that)(f)((a, b) => a *> b)
   }
 
   /**
@@ -97,12 +97,6 @@ final class Saga[-R, +E, +A] private (
     val h = (b: B, a: A) => f(a, b)
     new Saga(request.raceWith(that.request)(coordinate(f), coordinate(h)))
   }
-
-  /*
-    Run   : Parallel  | Sequential
-    OnFail: Interrupt | Continue
-
-   */
 
   /**
    * Materializes this Saga to ZIO effect.
