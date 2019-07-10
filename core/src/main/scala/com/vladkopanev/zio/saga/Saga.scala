@@ -33,9 +33,10 @@ final class Saga[-R, +E, +A] private (
   def flatMap[R1 <: R, E1 >: E, B](f: A => Saga[R1, E1, B]): Saga[R1, E1, B] =
     new Saga(request.flatMap {
       case (a, compA) =>
-        f(a).request.tapError({ case (e, compB) => compB.mapError(_ => (e, IO.unit)) }).mapError {
-          case (e, _) => (e, compA)
-        }
+        f(a).request.bimap(
+          { case (e, compB) => (e, compB *> compA) },
+          { case (r, compB) => (r, compB *> compA) }
+        )
     })
 
   /**

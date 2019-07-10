@@ -36,7 +36,7 @@ Let's think for a moment about how we could implement this pattern without any s
 
 The naive implementation could look like this:
 
-```
+```scala
 def orderSaga(): IO[SagaError, Unit] = {
     for {
       _ <- collectPayments(2d, 2) orElse refundPayments(2d, 2)
@@ -54,7 +54,7 @@ full rollback logic to be triggered in Saga, whatever error occurred.
  
 Second try, this time let's somehow trigger all compensating actions.
   
-```
+```scala
 def orderSaga(): IO[SagaError, Unit] = {
     collectPayments(2d, 2).flatMap { _ = >
         assignLoyaltyPoints(1d, 1).flatMap { _ => 
@@ -78,7 +78,7 @@ repeating the same boilerplate code from service to service.
 
 With `ZIO-SAGA` we could do it like so:
 
-```
+```scala
 def orderSaga(): IO[SagaError, Unit] = {
     import com.vladkopanev.zio.saga.Saga._
 
@@ -105,7 +105,7 @@ over transaction execution.
 `ZIO-SAGA` provides you with functions for retrying your compensating actions, so you could 
 write:
 
- ```
+ ```scala
 collectPayments(2d, 2) retryableCompensate (refundPayments(2d, 2), Schedule.exponential(1.second))
 ```
 
@@ -117,15 +117,18 @@ increasing timeouts (based on `ZIO#retry` and `ZSchedule`).
 Saga pattern does not limit transactional requests to run only in sequence.
 Because of that `ZIO-SAGA` contains methods for parallel execution of requests. 
 
-```
+```scala
     val flight          = bookFlight compensate cancelFlight
     val hotel           = bookHotel compensate cancelHotel
     val bookingSaga     = flight zipPar hotel
 ```
 
+### Cats Compatible Sagas
+
+[cats-saga](https://github.com/VladKopanev/cats-saga)
+
 ### See in the next releases:
 - Even more powerful control over compensation execution 
-- Cats interop
 
 [Link-Codecov]: https://codecov.io/gh/VladKopanev/zio-saga?branch=master "Codecov"
 [Link-Travis]: https://travis-ci.com/VladKopanev/zio-saga "circleci"
