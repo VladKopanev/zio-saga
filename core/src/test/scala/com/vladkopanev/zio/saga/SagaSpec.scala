@@ -273,7 +273,7 @@ class SagaSpec extends FlatSpec {
     } yield log
 
     val actionLog = unsafeRun(sagaIO)
-    actionLog shouldBe Vector("flight canceled", "hotel canceled")
+    actionLog shouldBe Vector("car canceled", "flight canceled", "hotel canceled")
   }
 
   "Saga#flatten" should "execute outer effect first and then the inner one producing the result of it" in new TestRuntime {
