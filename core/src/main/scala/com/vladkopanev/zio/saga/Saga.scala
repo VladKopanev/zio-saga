@@ -34,8 +34,8 @@ final class Saga[-R, +E, +A] private (
     new Saga(request.flatMap {
       case (a, compA) =>
         f(a).request.bimap(
-          { case (e, compB) => (e, compB.run *> compA) },
-          { case (r, compB) => (r, compB.run *> compA) }
+          { case (e, compB) => (e, compB *> compA) },
+          { case (r, compB) => (r, compB *> compA) }
         )
     })
 
