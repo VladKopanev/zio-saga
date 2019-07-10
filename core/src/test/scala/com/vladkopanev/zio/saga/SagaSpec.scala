@@ -259,6 +259,38 @@ class SagaSpec extends FlatSpec {
     val actionLog = unsafeRun(sagaIO)
     actionLog shouldBe Vector("flight canceled", "hotel canceled")
   }
+
+  "Saga#compensate" should "allow compensation to be dependent on the result of corresponding effect" in new TestRuntime {
+    val failCar = IO.fail(CarBookingError())
+    val sagaIO = for {
+      actionLog <- Ref.make(Vector.empty[String])
+      _ <- (for {
+        _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+        _ <- bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+        _ <- failCar compensate ((_: Either[SagaError, PaymentInfo]) => cancelCar(actionLog.update(_ :+ "car canceled")))
+      } yield ()).transact.orElse(ZIO.unit)
+      log <- actionLog.get
+    } yield log
+
+    val actionLog = unsafeRun(sagaIO)
+    actionLog shouldBe Vector("flight canceled", "hotel canceled")
+  }
+
+  "Saga#flatten" should "execute outer effect first and then the inner one producing the result of it" in new TestRuntime {
+    val sagaIO = for {
+      actionLog <- Ref.make(Vector.empty[String])
+      outer     = bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+      inner     = bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+      failCar   = IO.fail(CarBookingError()) compensate cancelCar(actionLog.update(_ :+ "car canceled"))
+
+      _   <- outer.map(_ => inner).flatten[Any, SagaError, PaymentInfo].flatMap(_ => failCar).transact.orElse(ZIO.unit)
+      log <- actionLog.get
+    } yield log
+
+    val actionLog = unsafeRun(sagaIO)
+    actionLog shouldBe Vector("car canceled", "hotel canceled", "flight canceled")
+  }
+
 }
 
 trait TestRuntime extends DefaultRuntime {
