@@ -93,6 +93,27 @@ class SagaSpec extends FlatSpec {
     actionLog shouldBe Vector("flight canceled", "hotel canceled")
   }
 
+  "Saga#zipWithParAll" should "allow combining compensations in parallel" in new TestRuntime {
+    val failFlight = IO.fail(FlightBookingError())
+    val failHotel = IO.fail(HotelBookingError())
+
+    def cancelFlightC(actionLog: Ref[Vector[String]]) = sleep(100.millis) *>
+      cancelFlight(actionLog.update(_ :+ "flight canceled"))
+    def cancelHotelC(actionLog: Ref[Vector[String]]) = sleep(100.millis) *>
+      cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+
+    val sagaIO = for {
+      actionLog <- Ref.make(Vector.empty[String])
+      _         <- (failFlight compensate cancelFlightC(actionLog)).zipWithParAll(
+        failHotel compensate cancelHotelC(actionLog))((_, _) => ())((a, b) => a.zipPar(b).unit).transact.orElse(IO.unit)
+      log <- actionLog.get
+    } yield log
+
+    val actionLog = unsafeRun(sagaIO)
+
+    actionLog should contain theSameElementsAs Vector("flight canceled", "hotel canceled")
+  }
+
   "Saga#retryableCompensate" should "construct Saga that repeats compensating action once" in new TestRuntime {
     val failFlight: ZIO[Any, FlightBookingError, PaymentInfo] = sleep(1000.millis) *> IO.fail(FlightBookingError())
 
@@ -298,7 +319,7 @@ trait TestRuntime extends DefaultRuntime {
 }
 
 object SagaSpec {
-  sealed trait SagaError {
+  sealed trait SagaError extends Product with Serializable {
     def message: String
   }
   case class FlightBookingError(message: String = "Can't book a flight")        extends SagaError
