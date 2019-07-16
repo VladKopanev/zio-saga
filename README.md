@@ -6,7 +6,7 @@
 
 Build your transactions in purely functional way.
 
-ZIO-SAGA allows you to compose your requests and compensating actions from Saga pattern in one transaction
+zio-saga allows you to compose your requests and compensating actions from Saga pattern in one transaction
 without any boilerplate.
 
 
@@ -74,9 +74,9 @@ look pretty much the same as we did in our last try.
 Achieve a generic solution is not that simple, so you will end up
 repeating the same boilerplate code from service to service.
 
-`ZIO-SAGA` tries to address this concerns and provide you with simple syntax to compose your Sagas.
+`zio-saga` tries to address this concerns and provide you with simple syntax to compose your Sagas.
 
-With `ZIO-SAGA` we could do it like so:
+With `zio-saga` we could do it like so:
 
 ```scala
 def orderSaga(): IO[SagaError, Unit] = {
@@ -94,15 +94,15 @@ def orderSaga(): IO[SagaError, Unit] = {
 `Sagas`.
 To materialize `Saga` object to `ZIO` when it's complete it is required to use `transact` method.
 
-As you can see with `ZIO-SAGA` the process of building your Sagas is greatly simplified comparably to ad-hoc solutions. 
+As you can see with `zio-saga` the process of building your Sagas is greatly simplified comparably to ad-hoc solutions. 
 ZIO-Sagas are composable, boilerplate-free and intuitively understandable for people that aware of Saga pattern.
 This library let you compose transaction steps both in sequence and in parallel, this feature gives you more powerful control 
 over transaction execution.
 
-# Additional capabilities
+# Advanced
 
 ### Retrying 
-`ZIO-SAGA` provides you with functions for retrying your compensating actions, so you could 
+`zio-saga` provides you with functions for retrying your compensating actions, so you could 
 write:
 
  ```scala
@@ -115,7 +115,7 @@ increasing timeouts (based on `ZIO#retry` and `ZSchedule`).
 
 ### Parallel execution
 Saga pattern does not limit transactional requests to run only in sequence.
-Because of that `ZIO-SAGA` contains methods for parallel execution of requests. 
+Because of that `zio-saga` contains methods for parallel execution of requests. 
 
 ```scala
     val flight          = bookFlight compensate cancelFlight
@@ -123,12 +123,30 @@ Because of that `ZIO-SAGA` contains methods for parallel execution of requests.
     val bookingSaga     = flight zipPar hotel
 ```
 
+Note that in this case two compensations would run in sequence, one after another by default.
+If you need to execute compensations in parallel consider using `Saga#zipWithParAll` function, it allows arbitrary combinations
+of compensating actions.
+
+### Result dependent compensations
+
+Depending on the result of compensable effect you may want to execute specific compensation, for such cases `zio-saga`
+contains functions specific functions:
+- `compensate(compensation: Either[E, A] => Compensator[R, E])` this function makes compensation dependent on the result 
+of corresponding effect that either fails or succeeds.
+- `compensateIfFail(compensation: E => Compensator[R, E])` this function makes compensation dependent only on error type 
+hence compensation will only be triggered if corresponding effect fails.
+- `compensateIfSuccess(compensation: A => Compensator[R, E])` this function makes compensation dependent only on
+successful result type hence compensation can only occur if corresponding effect succeeds.
+
+### Notes on compensation action failures
+
+By default, if some compensation action fails no other compensation would run and therefore user have the ability to 
+choose what to do: stop compensation (by default), retry failed compensation step until it succeeds or proceed to next 
+compensation steps ignoring the failure.
+
 ### Cats Compatible Sagas
 
 [cats-saga](https://github.com/VladKopanev/cats-saga)
-
-### See in the next releases:
-- Even more powerful control over compensation execution 
 
 [Link-Codecov]: https://codecov.io/gh/VladKopanev/zio-saga?branch=master "Codecov"
 [Link-Travis]: https://travis-ci.com/VladKopanev/zio-saga "circleci"
