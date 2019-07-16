@@ -64,7 +64,6 @@ final class Saga[-R, +E, +A] private (
    * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`
    * and combining the compensating actions with function `g` (this allows user to choose a strategy of running both
    * compensating actions e.g. in sequence or in parallel).
-   * Both compensating actions would be executed in case of failure.
    * */
   def zipWithParAll[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])
                                            (f: (A, B) => C)
