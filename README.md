@@ -140,7 +140,7 @@ successful result type hence compensation can only occur if corresponding effect
 
 ### Notes on compensation action failures
 
-By default, if some compensation action fails no other compensation would run and therefore user have the ability to 
+By default, if some compensation action fails no other compensation would run and therefore user has the ability to 
 choose what to do: stop compensation (by default), retry failed compensation step until it succeeds or proceed to next 
 compensation steps ignoring the failure.
 
