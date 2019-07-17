@@ -124,13 +124,13 @@ Because of that `zio-saga` contains methods for parallel execution of requests.
 ```
 
 Note that in this case two compensations would run in sequence, one after another by default.
-If you need to execute compensations in parallel consider using `Saga#zipWithParAll` function, it allows arbitrary combinations
-of compensating actions.
+If you need to execute compensations in parallel consider using `Saga#zipWithParAll` function, it allows arbitrary 
+combinations of compensating actions.
 
 ### Result dependent compensations
 
 Depending on the result of compensable effect you may want to execute specific compensation, for such cases `zio-saga`
-contains functions specific functions:
+contains specific functions:
 - `compensate(compensation: Either[E, A] => Compensator[R, E])` this function makes compensation dependent on the result 
 of corresponding effect that either fails or succeeds.
 - `compensateIfFail(compensation: E => Compensator[R, E])` this function makes compensation dependent only on error type 
