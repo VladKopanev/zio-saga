@@ -1,12 +1,12 @@
 package com.vladkopanev.zio.saga.example
 
-import scalaz.zio.{ Task, ZIO }
+import zio.{ Task, ZIO }
 
 import scala.util.Random
 
 package object client {
 
-  import scalaz.zio.duration._
+  import zio.duration._
 
   def randomSleep(maxTimeout: Int): TaskC[Unit] =
     for {

@@ -5,7 +5,7 @@ import java.util.UUID
 import com.vladkopanev.zio.saga.example.TaskC
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import scalaz.zio.Task
+import zio.Task
 
 trait LoyaltyPointsServiceClient {
 
@@ -35,7 +35,7 @@ class LoyaltyPointsServiceClientStub(logger: Logger[Task], maxRequestTimeout: In
 
 object LoyaltyPointsServiceClientStub {
 
-  import scalaz.zio.interop.catz._
+  import zio.interop.catz._
 
   def apply(maxRequestTimeout: Int, flaky: Boolean): Task[LoyaltyPointsServiceClientStub] =
     Slf4jLogger.create[Task].map(new LoyaltyPointsServiceClientStub(_, maxRequestTimeout, flaky))

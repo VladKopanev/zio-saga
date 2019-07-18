@@ -4,7 +4,7 @@ import sbt.file
 name := "zio-saga"
 
 val mainScala = "2.12.8"
-val allScala  = Seq("2.11.12", mainScala)
+val allScala  = Seq("2.11.12", mainScala, "2.13.0")
 
 inThisBuild(
   List(
@@ -37,7 +37,6 @@ lazy val commonSettings = Seq(
     "-explaintypes",
     "-Yrangepos",
     "-feature",
-    "-Xfuture",
     "-language:higherKinds",
     "-language:existentials",
     "-language:implicitConversions",
@@ -49,6 +48,7 @@ lazy val commonSettings = Seq(
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 11)) =>
       Seq(
+        "-Xfuture",
         "-Yno-adapted-args",
         "-Ypartial-unification",
         "-Ywarn-inaccessible",
@@ -58,6 +58,7 @@ lazy val commonSettings = Seq(
       )
     case Some((2, 12)) =>
       Seq(
+        "-Xfuture",
         "-Xsource:2.13",
         "-Yno-adapted-args",
         "-Ypartial-unification",
@@ -68,11 +69,11 @@ lazy val commonSettings = Seq(
         "-Ywarn-nullary-unit",
         "-opt-inline-from:<source>",
         "-opt-warnings",
-        "-opt:l:inline"
+        "-opt:l:inline",
+        "-Ypartial-unification"
       )
     case _ => Nil
   }),
-  scalacOptions ++= Seq("-Ypartial-unification"),
   resolvers ++= Seq(Resolver.sonatypeRepo("snapshots"), Resolver.sonatypeRepo("releases"))
 )
 
@@ -88,15 +89,15 @@ lazy val core = project
     name := "zio-saga-core",
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
-      "org.scalaz"    %% "scalaz-zio" % "1.0-RC5",
-      "org.scalatest" %% "scalatest"  % "3.0.5" % "test"
+      "dev.zio"    %% "zio" % "1.0.0-RC10-1",
+      "org.scalatest" %% "scalatest"  % "3.0.8" % "test"
     )
   )
 
-val http4sVersion   = "0.20.1"
-val log4CatsVersion = "0.3.0"
-val doobieVersion   = "0.7.0"
-val circeVersion    = "0.11.1"
+val http4sVersion   = "0.21.0-M2"
+val log4CatsVersion = "0.4.0-M2"
+val doobieVersion   = "0.8.0-M1"
+val circeVersion    = "0.12.0-M4"
 
 lazy val examples = project
   .in(file("examples"))
@@ -105,6 +106,7 @@ lazy val examples = project
     coverageEnabled := false,
     libraryDependencies ++= Seq(
       "ch.qos.logback"    % "logback-classic"          % "1.2.3",
+      "dev.zio"           %% "zio-interop-cats"        % "2.0.0.0-RC1",
       "io.chrisdavenport" %% "log4cats-core"           % log4CatsVersion,
       "io.chrisdavenport" %% "log4cats-slf4j"          % log4CatsVersion,
       "io.circe"          %% "circe-generic"           % circeVersion,
@@ -112,13 +114,12 @@ lazy val examples = project
       "org.http4s"        %% "http4s-circe"            % http4sVersion,
       "org.http4s"        %% "http4s-dsl"              % http4sVersion,
       "org.http4s"        %% "http4s-blaze-server"     % http4sVersion,
-      "org.scalaz"        %% "scalaz-zio-interop-cats" % "1.0-RC5",
       "org.tpolecat"      %% "doobie-core"             % doobieVersion,
       "org.tpolecat"      %% "doobie-hikari"           % doobieVersion,
       "org.tpolecat"      %% "doobie-postgres"         % doobieVersion,
-      compilerPlugin("org.scalamacros" % "paradise"            % "2.1.0" cross CrossVersion.full),
-      compilerPlugin("org.spire-math"  %% "kind-projector"     % "0.9.9"),
-      compilerPlugin("com.olegpy"      %% "better-monadic-for" % "0.3.0-M4")
+      compilerPlugin("org.scalamacros"  % "paradise"            % "2.1.0" cross CrossVersion.full),
+      compilerPlugin("org.typelevel"    %% "kind-projector"     % "0.10.3"),
+      compilerPlugin("com.olegpy"       %% "better-monadic-for" % "0.3.0")
     )
   )
   .dependsOn(core % "compile->compile")

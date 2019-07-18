@@ -5,7 +5,7 @@ import java.util.UUID
 import com.vladkopanev.zio.saga.example.TaskC
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import scalaz.zio.Task
+import zio.Task
 
 trait OrderServiceClient {
 
@@ -33,7 +33,7 @@ class OrderServiceClientStub(logger: Logger[Task], maxRequestTimeout: Int, flaky
 
 object OrderServiceClientStub {
 
-  import scalaz.zio.interop.catz._
+  import zio.interop.catz._
 
   def apply(maxRequestTimeout: Int, flaky: Boolean): Task[OrderServiceClientStub] =
     Slf4jLogger.create[Task].map(new OrderServiceClientStub(_, maxRequestTimeout, flaky))

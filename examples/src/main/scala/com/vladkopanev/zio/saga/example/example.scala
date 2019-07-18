@@ -1,6 +1,6 @@
 package com.vladkopanev.zio.saga
-import scalaz.zio.TaskR
-import scalaz.zio.clock.Clock
+import zio.TaskR
+import zio.clock.Clock
 
 package object example {
   type TaskC[+A] = TaskR[Clock, A]

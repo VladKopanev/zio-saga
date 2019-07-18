@@ -6,7 +6,7 @@ import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.implicits._
 import org.http4s.{ HttpApp, HttpRoutes }
-import scalaz.zio.interop.catz._
+import zio.interop.catz._
 
 final class SagaEndpoint(orderSagaCoordinator: OrderSagaCoordinator) extends Http4sDsl[TaskC] {
 
