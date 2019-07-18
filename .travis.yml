@@ -10,6 +10,9 @@ matrix:
     # Scala 2.12, JVM
     - jdk: oraclejdk8
       scala: 2.12.8
+    # Scala 2.13, JVM
+    - jdk: oraclejdk8
+      scala: 2.13.0
 
 branches:
   only:

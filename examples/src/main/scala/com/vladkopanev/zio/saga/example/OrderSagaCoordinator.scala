@@ -7,7 +7,7 @@ import com.vladkopanev.zio.saga.example.dao.SagaLogDao
 import com.vladkopanev.zio.saga.example.model.{OrderSagaData, OrderSagaError, SagaStep}
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import scalaz.zio.{Schedule, Task, ZIO}
+import zio.{Schedule, Task, ZIO}
 
 import scala.concurrent.TimeoutException
 
@@ -36,7 +36,7 @@ class OrderSagaCoordinatorImpl(
     sagaIdOpt: Option[Long]
   ): TaskC[Unit] = {
 
-    import scalaz.zio.duration._
+    import zio.duration._
 
     def mkSagaRequest(
       request: TaskC[Unit],
@@ -146,7 +146,7 @@ class OrderSagaCoordinatorImpl(
 }
 
 object OrderSagaCoordinatorImpl {
-  import scalaz.zio.interop.catz._
+  import zio.interop.catz._
 
   def apply(
     paymentServiceClient: PaymentServiceClient,

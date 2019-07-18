@@ -6,9 +6,9 @@ import com.vladkopanev.zio.saga.example.client.{
   }
 import com.vladkopanev.zio.saga.example.dao.SagaLogDaoImpl
 import com.vladkopanev.zio.saga.example.endpoint.SagaEndpoint
-import scalaz.zio.interop.catz._
-import scalaz.zio.console.putStrLn
-import scalaz.zio.{ App, ZIO }
+import zio.interop.catz._
+import zio.console.putStrLn
+import zio.{ App, ZIO }
 
 object SagaApp extends App {
 

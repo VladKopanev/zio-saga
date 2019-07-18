@@ -5,7 +5,7 @@ import java.util.UUID
 import com.vladkopanev.zio.saga.example.model.{ SagaInfo, SagaStep }
 import io.circe.Json
 import org.postgresql.util.PGobject
-import scalaz.zio.{ Task, ZIO }
+import zio.{ Task, ZIO }
 
 trait SagaLogDao {
   def finishSaga(sagaId: Long): ZIO[Any, Throwable, Unit]
@@ -28,7 +28,7 @@ class SagaLogDaoImpl extends SagaLogDao {
   import doobie._
   import doobie.implicits._
   import doobie.postgres.implicits._
-  import scalaz.zio.interop.catz._
+  import zio.interop.catz._
 
   val xa = Transactor.fromDriverManager[Task](
     "org.postgresql.Driver",

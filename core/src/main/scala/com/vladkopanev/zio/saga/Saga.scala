@@ -1,9 +1,9 @@
 package com.vladkopanev.zio.saga
 
 import com.vladkopanev.zio.saga.Saga.Compensator
-import scalaz.zio.Exit.Cause
-import scalaz.zio.clock.Clock
-import scalaz.zio.{ Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO }
+import zio.Cause
+import zio.clock.Clock
+import zio.{ Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO }
 
 /**
  * A Saga is an immutable structure that models a distributed transaction.
@@ -65,33 +65,36 @@ final class Saga[-R, +E, +A] private (
    * and combining the compensating actions with function `g` (this allows user to choose a strategy of running both
    * compensating actions e.g. in sequence or in parallel).
    * */
-  def zipWithParAll[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])
-                                           (f: (A, B) => C)
-                                           (g: (Compensator[R1, E1], Compensator[R1, E1]) => Compensator[R1, E1]): Saga[R1, E1, C] = {
+  def zipWithParAll[R1 <: R, E1 >: E, B, C](
+    that: Saga[R1, E1, B]
+  )(f: (A, B) => C)(g: (Compensator[R1, E1], Compensator[R1, E1]) => Compensator[R1, E1]): Saga[R1, E1, C] = {
     def coordinate[A1, B1, C1](f: (A1, B1) => C1)(
       fasterSaga: Exit[(E1, Compensator[R1, E1]), (A1, Compensator[R1, E1])],
       slowerSaga: Fiber[(E1, Compensator[R1, E1]), (B1, Compensator[R1, E1])]
     ): ZIO[R1, (E1, Compensator[R1, E1]), (C1, Compensator[R1, E1])] =
-      fasterSaga match {
-        case Exit.Success((a, compA)) =>
-          slowerSaga.join.bimap(
-            { case (e, compB) => (e, g(compB, compA)) },
-            { case (b, compB) => (f(a, b), g(compB, compA)) }
-          )
-        case Exit.Failure(cause) =>
+      fasterSaga.foldM(
+        { cause =>
           def extractCompensatorFrom(c: Cause[(E1, Compensator[R1, E1])]): Compensator[R1, E1] =
             c.failures.headOption.map[Compensator[R1, E1]](_._2).getOrElse(ZIO.dieMessage("Compensator was lost"))
           /* we can't use interrupt here because we won't get a compensation action in case
-             IO was still running and interrupted */
-          slowerSaga.await.flatMap {
-            case Exit.Success((_, compB)) =>
-              ZIO.halt(cause.map { case (e, compA) => (e, g(compB, compA)) })
-            case Exit.Failure(loserCause) =>
-              val compA = extractCompensatorFrom(cause)
-              val compB = extractCompensatorFrom(loserCause)
-              ZIO.halt((cause && loserCause).map { case (e, _) => (e, g(compB, compA)) })
-          }
-      }
+           IO was still running and interrupted */
+          slowerSaga.await.flatMap(
+            _.foldM(
+              { loserCause =>
+                val compA = extractCompensatorFrom(cause)
+                val compB = extractCompensatorFrom(loserCause)
+                ZIO.halt((cause && loserCause).map { case (e, _) => (e, g(compB, compA)) })
+              }, { case (_, compB) => ZIO.halt(cause.map { case (e, compA) => (e, g(compB, compA)) }) }
+            )
+          )
+        }, {
+          case (a, compA) =>
+            slowerSaga.join.bimap(
+              { case (e, compB) => (e, g(compB, compA)) },
+              { case (b, compB) => (f(a, b), g(compB, compA)) }
+            )
+        }
+      )
 
     val h = (b: B, a: A) => f(a, b)
     new Saga(request.raceWith(that.request)(coordinate(f), coordinate(h)))

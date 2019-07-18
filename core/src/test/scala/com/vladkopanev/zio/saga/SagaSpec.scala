@@ -2,14 +2,14 @@ package com.vladkopanev.zio.saga
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
-import scalaz.zio.duration.Duration
+import zio.duration.Duration
 import Saga.Compensator
-import scalaz.zio.{DefaultRuntime, IO, Ref, Schedule, UIO, ZIO}
+import zio.{DefaultRuntime, IO, Ref, Schedule, UIO, ZIO}
 
 class SagaSpec extends FlatSpec {
   import Saga._
   import SagaSpec._
-  import scalaz.zio.duration._
+  import zio.duration._
 
   "Saga#map" should "change the result value with provided function" in new TestRuntime {
     val saga = Saga.compensate(ZIO.succeed(1), ZIO.unit).map(_.toString)
