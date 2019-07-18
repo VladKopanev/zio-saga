@@ -2,12 +2,16 @@ package com.vladkopanev.zio.saga.example
 
 import java.util.UUID
 
-import com.vladkopanev.zio.saga.example.client.{LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient}
+import com.vladkopanev.zio.saga.example.client.{
+    LoyaltyPointsServiceClient,
+    OrderServiceClient,
+    PaymentServiceClient
+  }
 import com.vladkopanev.zio.saga.example.dao.SagaLogDao
-import com.vladkopanev.zio.saga.example.model.{OrderSagaData, OrderSagaError, SagaStep}
+import com.vladkopanev.zio.saga.example.model.{ OrderSagaData, OrderSagaError, SagaStep }
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import zio.{Schedule, Task, ZIO}
+import zio.{ Schedule, Task, ZIO }
 
 import scala.concurrent.TimeoutException
 

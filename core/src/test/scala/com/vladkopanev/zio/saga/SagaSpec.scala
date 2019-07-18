@@ -4,7 +4,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 import zio.duration.Duration
 import Saga.Compensator
-import zio.{DefaultRuntime, IO, Ref, Schedule, UIO, ZIO}
+import zio.{ DefaultRuntime, IO, Ref, Schedule, UIO, ZIO }
 
 class SagaSpec extends FlatSpec {
   import Saga._
