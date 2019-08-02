@@ -5,13 +5,13 @@ language: scala
 matrix:
   include:
     # Scala 2.11, JVM
-    - jdk: oraclejdk8
+    - jdk: openjdk8
       scala: 2.11.12
     # Scala 2.12, JVM
-    - jdk: oraclejdk8
+    - jdk: openjdk8
       scala: 2.12.8
     # Scala 2.13, JVM
-    - jdk: oraclejdk8
+    - jdk: openjdk8
       scala: 2.13.0
 
 branches:
