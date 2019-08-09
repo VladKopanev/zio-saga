@@ -1,8 +1,8 @@
 # ZIO-SAGA
 
-| CI | Coverage | Release |
-| --- | --- | --- |
-| [![Build Status][Badge-Travis]][Link-Travis] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] |
+| CI | Coverage | Release |  |
+| --- | --- | --- | --- |
+| [![Build Status][Badge-Travis]][Link-Travis] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Scala Steward badge][Badge-ScalaSteward]][Link-ScalaSteward] |
 
 Build your transactions in purely functional way.
 
@@ -151,7 +151,9 @@ compensation steps ignoring the failure.
 [Link-Codecov]: https://codecov.io/gh/VladKopanev/zio-saga?branch=master "Codecov"
 [Link-Travis]: https://travis-ci.com/VladKopanev/zio-saga "circleci"
 [Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/com/vladkopanev/zio-saga-core_2.12/ "Sonatype Releases"
+[Link-ScalaSteward]: https://scala-steward.org
 
 [Badge-Codecov]: https://codecov.io/gh/VladKopanev/zio-saga/branch/master/graph/badge.svg "Codecov" 
 [Badge-Travis]: https://travis-ci.com/VladKopanev/zio-saga.svg?branch=master "Codecov" 
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/com.vladkopanev/zio-saga-core_2.11.svg "Sonatype Releases"
+[Badge-ScalaSteward]: https://img.shields.io/badge/Scala_Steward-helping-brightgreen.svg?style=flat&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAQCAMAAAARSr4IAAAAVFBMVEUAAACHjojlOy5NWlrKzcYRKjGFjIbp293YycuLa3pYY2LSqql4f3pCUFTgSjNodYRmcXUsPD/NTTbjRS+2jomhgnzNc223cGvZS0HaSD0XLjbaSjElhIr+AAAAAXRSTlMAQObYZgAAAHlJREFUCNdNyosOwyAIhWHAQS1Vt7a77/3fcxxdmv0xwmckutAR1nkm4ggbyEcg/wWmlGLDAA3oL50xi6fk5ffZ3E2E3QfZDCcCN2YtbEWZt+Drc6u6rlqv7Uk0LdKqqr5rk2UCRXOk0vmQKGfc94nOJyQjouF9H/wCc9gECEYfONoAAAAASUVORK5CYII=
