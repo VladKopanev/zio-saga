@@ -1,10 +1,10 @@
 package com.vladkopanev.zio.saga
 
+import com.vladkopanev.zio.saga.Saga.Compensator
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 import zio.duration.Duration
-import Saga.Compensator
-import zio.{ DefaultRuntime, IO, Ref, Schedule, UIO, ZIO }
+import zio.{DefaultRuntime, IO, Ref, Schedule, UIO, ZIO}
 
 class SagaSpec extends FlatSpec {
   import Saga._
@@ -310,6 +310,34 @@ class SagaSpec extends FlatSpec {
 
     val actionLog = unsafeRun(sagaIO)
     actionLog shouldBe Vector("car canceled", "hotel canceled", "flight canceled")
+  }
+
+  "Saga#transact" should "return original error in case compensator also fails" in new TestRuntime {
+    val expectedError = FlightBookingError()
+    val failFlight: IO[FlightBookingError, Any] = sleep(1000.millis) *> IO.fail(expectedError)
+
+    val failCompensator = cancelFlight *> IO.fail(CarBookingError())
+
+    val saga = (failFlight compensate failCompensator).transact.catchAll(e => IO.succeed(e))
+
+    val actualError = unsafeRun(saga)
+    actualError shouldBe expectedError
+  }
+
+  it should "return original error in case compensator also fails 2" in new TestRuntime {
+    val expectedError = FlightBookingError()
+    val failFlight: IO[FlightBookingError, Any] = sleep(1000.millis) *> IO.fail(expectedError)
+
+    val failCompensator = cancelFlight *> IO.fail(new RuntimeException())
+
+    val saga = (for {
+      _ <- bookHotel compensate cancelHotel
+      _ <- failFlight compensate failCompensator
+      _ <- bookCar compensate cancelCar
+    } yield ()).transact.catchAll(e => IO.succeed(e))
+
+    val actualError = unsafeRun(saga)
+    actualError shouldBe expectedError
   }
 
 }
