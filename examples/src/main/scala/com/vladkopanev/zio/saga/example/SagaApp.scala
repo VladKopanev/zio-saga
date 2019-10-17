@@ -8,7 +8,7 @@ import com.vladkopanev.zio.saga.example.dao.SagaLogDaoImpl
 import com.vladkopanev.zio.saga.example.endpoint.SagaEndpoint
 import zio.interop.catz._
 import zio.console.putStrLn
-import zio.{ App, ZIO }
+import zio.{ App, ZEnv, ZIO }
 
 object SagaApp extends App {
 
@@ -16,7 +16,7 @@ object SagaApp extends App {
 
   implicit val runtime = this
 
-  override def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
+  override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val flakyClient         = sys.env.getOrElse("FLAKY_CLIENT", "false").toBoolean
     val clientMaxReqTimeout = sys.env.getOrElse("CLIENT_MAX_REQUEST_TIMEOUT_SEC", "10").toInt
     val sagaMaxReqTimeout   = sys.env.getOrElse("SAGA_MAX_REQUEST_TIMEOUT_SEC", "12").toInt
@@ -31,8 +31,8 @@ object SagaApp extends App {
       _              <- orderSEC.recoverSagas.fork
       _              <- BlazeServerBuilder[TaskC].bindHttp(8042).withHttpApp(app).serve.compile.drain
     } yield ()).foldM(
-      e => putStrLn(s"Saga Coordinator fails with error $e, stopping server...").const(1),
-      _ => putStrLn(s"Saga Coordinator finished successfully, stopping server...").const(0)
+      e => putStrLn(s"Saga Coordinator fails with error $e, stopping server...").as(1),
+      _ => putStrLn(s"Saga Coordinator finished successfully, stopping server...").as(0)
     )
   }
 

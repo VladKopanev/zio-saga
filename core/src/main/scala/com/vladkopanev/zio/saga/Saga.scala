@@ -1,9 +1,8 @@
 package com.vladkopanev.zio.saga
 
 import com.vladkopanev.zio.saga.Saga.Compensator
-import zio.Cause
+import zio.{ Cause, Exit, Fiber, IO, RIO, Schedule, Task, UIO, ZIO }
 import zio.clock.Clock
-import zio.{ Exit, Fiber, IO, Schedule, Task, TaskR, UIO, ZIO }
 
 /**
  * A Saga is an immutable structure that models a distributed transaction.
@@ -195,9 +194,9 @@ object Saga {
 
   implicit def UIOtoCompensable[A](uio: UIO[A]): Compensable[Any, Nothing, A] = new Compensable(uio)
 
-  implicit def TaskRtoCompensable[R, A](taskR: TaskR[R, A]): Compensable[R, Throwable, A] = new Compensable(taskR)
+  implicit def TaskRtoCompensable[R, A](rio: RIO[R, A]): Compensable[R, Throwable, A] = new Compensable(rio)
 
-  implicit def TaskToCompensable[A](taskR: Task[A]): Compensable[Any, Throwable, A] = new Compensable(taskR)
+  implicit def TaskToCompensable[A](task: Task[A]): Compensable[Any, Throwable, A] = new Compensable(task)
   // $COVERAGE-ON$
 
   /**
