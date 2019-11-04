@@ -11,7 +11,7 @@ import com.vladkopanev.zio.saga.example.dao.SagaLogDao
 import com.vladkopanev.zio.saga.example.model.{ OrderSagaData, OrderSagaError, SagaStep }
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import zio.{ Schedule, Task, ZIO }
+import zio.{ Task, ZIO, ZSchedule }
 
 import scala.concurrent.TimeoutException
 
@@ -101,7 +101,7 @@ class OrderSagaCoordinatorImpl(
         compensating = true
       )
 
-    val expSchedule = Schedule.exponential(1.second)
+    val expSchedule = ZSchedule.exponential(1.second)
     def buildSaga(sagaId: Long, executedSteps: List[SagaStep]) =
       for {
         _ <- collectPayments(executedSteps, sagaId) retryableCompensate (refundPayments(executedSteps, sagaId), expSchedule)

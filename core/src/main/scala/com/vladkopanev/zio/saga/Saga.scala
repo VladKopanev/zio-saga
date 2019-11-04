@@ -1,8 +1,7 @@
 package com.vladkopanev.zio.saga
 
 import com.vladkopanev.zio.saga.Saga.Compensator
-import zio.{ Cause, Exit, Fiber, IO, RIO, Schedule, Task, UIO, ZIO }
-import zio.clock.Clock
+import zio.{ Cause, Exit, Fiber, IO, RIO, Task, UIO, ZIO, ZSchedule }
 
 /**
  * A Saga is an immutable structure that models a distributed transaction.
@@ -173,12 +172,12 @@ object Saga {
   /**
    * Constructs new Saga from action, compensating action and a scheduling policy for retrying compensation.
    * */
-  def retryableCompensate[R, E, A](
+  def retryableCompensate[R, SR, E, A](
     request: ZIO[R, E, A],
     compensator: Compensator[R, E],
-    schedule: Schedule[E, Any]
-  ): Saga[R with Clock, E, A] = {
-    val retry: Compensator[R with Clock, E] = compensator.retry(schedule.unit)
+    schedule: ZSchedule[SR, E, Any]
+  ): Saga[R with SR, E, A] = {
+    val retry: Compensator[R with SR, E] = compensator.retry(schedule.unit)
     compensate(request, retry)
   }
 
@@ -194,7 +193,7 @@ object Saga {
 
   implicit def UIOtoCompensable[A](uio: UIO[A]): Compensable[Any, Nothing, A] = new Compensable(uio)
 
-  implicit def TaskRtoCompensable[R, A](rio: RIO[R, A]): Compensable[R, Throwable, A] = new Compensable(rio)
+  implicit def RIOtoCompensable[R, A](rio: RIO[R, A]): Compensable[R, Throwable, A] = new Compensable(rio)
 
   implicit def TaskToCompensable[A](task: Task[A]): Compensable[Any, Throwable, A] = new Compensable(task)
   // $COVERAGE-ON$
@@ -216,10 +215,10 @@ object Saga {
     def compensateIfSuccess[R1 <: R, E1 >: E](compensation: A => Compensator[R1, E1]): Saga[R1, E1, A] =
       Saga.compensateIfSuccess(request, compensation)
 
-    def retryableCompensate[R1 <: R, E1 >: E](
+    def retryableCompensate[R1 <: R, SR, E1 >: E](
       c: Compensator[R1, E1],
-      schedule: Schedule[E1, Any]
-    ): Saga[R1 with Clock, E1, A] =
+      schedule: ZSchedule[SR, E1, Any]
+    ): Saga[R1 with SR, E1, A] =
       Saga.retryableCompensate(request, c, schedule)
 
     def noCompensate: Saga[R, E, A] = Saga.noCompensate(request)

@@ -3,8 +3,8 @@ import sbt.file
 
 name := "zio-saga"
 
-val mainScala = "2.12.8"
-val allScala  = Seq("2.11.12", mainScala, "2.13.0")
+val mainScala = "2.12.10"
+val allScala  = Seq("2.11.12", mainScala, "2.13.1")
 
 inThisBuild(
   List(
@@ -89,24 +89,25 @@ lazy val core = project
     name := "zio-saga-core",
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
-      "dev.zio"    %% "zio" % "1.0.0-RC15",
+      "dev.zio"       %% "zio"        % "1.0.0-RC16",
       "org.scalatest" %% "scalatest"  % "3.0.8" % "test"
     )
   )
 
 val http4sVersion   = "0.21.0-M2"
-val log4CatsVersion = "0.4.0-M2"
-val doobieVersion   = "0.8.0-M1"
-val circeVersion    = "0.12.0-M4"
+val log4CatsVersion = "1.0.1"
+val doobieVersion   = "0.8.4"
+val circeVersion    = "0.12.3"
 
 lazy val examples = project
   .in(file("examples"))
   .settings(
     commonSettings,
+    scalaVersion := mainScala,
     coverageEnabled := false,
     libraryDependencies ++= Seq(
       "ch.qos.logback"    % "logback-classic"          % "1.2.3",
-      "dev.zio"           %% "zio-interop-cats"        % "2.0.0.0-RC1",
+      "dev.zio"           %% "zio-interop-cats"        % "2.0.0.0-RC7",
       "io.chrisdavenport" %% "log4cats-core"           % log4CatsVersion,
       "io.chrisdavenport" %% "log4cats-slf4j"          % log4CatsVersion,
       "io.circe"          %% "circe-generic"           % circeVersion,
@@ -117,9 +118,9 @@ lazy val examples = project
       "org.tpolecat"      %% "doobie-core"             % doobieVersion,
       "org.tpolecat"      %% "doobie-hikari"           % doobieVersion,
       "org.tpolecat"      %% "doobie-postgres"         % doobieVersion,
-      compilerPlugin("org.scalamacros"  % "paradise"            % "2.1.0" cross CrossVersion.full),
-      compilerPlugin("org.typelevel"    %% "kind-projector"     % "0.10.3"),
-      compilerPlugin("com.olegpy"       %% "better-monadic-for" % "0.3.0")
+     // compilerPlugin("org.scalamacros"  %% "paradise"           % "2.1.0"),
+      compilerPlugin("org.typelevel"    %% "kind-projector"     % "0.11.0" cross CrossVersion.full),
+      compilerPlugin("com.olegpy"       %% "better-monadic-for" % "0.3.1")
     )
   )
   .dependsOn(core % "compile->compile")
