@@ -89,14 +89,14 @@ lazy val core = project
     name := "zio-saga-core",
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
-      "dev.zio"       %% "zio"        % "1.0.0-RC16",
+      "dev.zio"       %% "zio"        % "1.0.0-RC17",
       "org.scalatest" %% "scalatest"  % "3.0.8" % "test"
     )
   )
 
-val http4sVersion   = "0.21.0-M2"
+val http4sVersion   = "0.21.0-M5"
 val log4CatsVersion = "1.0.1"
-val doobieVersion   = "0.8.4"
+val doobieVersion   = "0.8.6"
 val circeVersion    = "0.12.3"
 
 lazy val examples = project
@@ -107,7 +107,7 @@ lazy val examples = project
     coverageEnabled := false,
     libraryDependencies ++= Seq(
       "ch.qos.logback"    % "logback-classic"          % "1.2.3",
-      "dev.zio"           %% "zio-interop-cats"        % "2.0.0.0-RC7",
+      "dev.zio"           %% "zio-interop-cats"        % "2.0.0.0-RC8",
       "io.chrisdavenport" %% "log4cats-core"           % log4CatsVersion,
       "io.chrisdavenport" %% "log4cats-slf4j"          % log4CatsVersion,
       "io.circe"          %% "circe-generic"           % circeVersion,
