@@ -6,6 +6,10 @@ import org.scalatest.Matchers._
 import zio.duration.Duration
 import zio.{ DefaultRuntime, IO, Ref, Schedule, UIO, ZIO }
 
+
+import com.dimafeng.testcontainers.{ ForAllTestContainer, PostgreSQLContainer }
+
+
 class SagaSpec extends FlatSpec {
   import Saga._
   import SagaSpec._
@@ -14,6 +18,10 @@ class SagaSpec extends FlatSpec {
   "Saga#map" should "change the result value with provided function" in new TestRuntime {
     val saga = Saga.compensate(ZIO.succeed(1), ZIO.unit).map(_.toString)
     unsafeRun(saga.transact) shouldBe "1"
+  }
+
+  "blah" should "test container" in new TestRuntime {
+    val container = new PostgreSQLContainer()
   }
 
   "Saga#zipPar" should "successfully run two Sagas" in new TestRuntime {
