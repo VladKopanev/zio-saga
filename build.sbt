@@ -104,14 +104,16 @@ val psqlDriverVersion    = "42.2.8"
 val PSQLDriverVersion    = "42.2.8"
 val ScalatestVersion     = "3.0.8"
 val PsqlContVersion      = "1.12.3"
+val h2database           = "1.4.200"
 
 lazy val commonDeps =
   libraryDependencies ++= Seq(
-    "dev.zio"            %% "zio"                  % zioVersion,
-    "org.scalatest"      %% "scalatest"            % scalatestVersion % "test",
-    "com.dimafeng"       %% "testcontainers-scala" % tcVersion % "test",
-    "org.testcontainers" % "postgresql"            % PsqlContVersion,
-    "org.postgresql"     % "postgresql"            % PSQLDriverVersion
+    "dev.zio"        %% "zio"       % zioVersion,
+    "org.scalatest"  %% "scalatest" % scalatestVersion % "test",
+    "com.h2database" % "h2"         % h2Version
+    // "com.dimafeng"       %% "testcontainers-scala" % tcVersion % "test",
+    // "org.testcontainers" % "postgresql"            % PsqlContVersion,
+    // "org.postgresql"     % "postgresql"            % PSQLDriverVersion
   )
 
 lazy val examples = project
