@@ -3,14 +3,25 @@ import BuildHelper._
 
 name := "zio-saga"
 
-lazy val commonDeps =
+lazy val common =
   libraryDependencies ++= Seq(
-    "dev.zio"        %% "zio"       % zioVersion,
-    "org.scalatest"  %% "scalatest" % scalatestVersion % "test",
-    "com.h2database" % "h2"         % h2Version
-    // "com.dimafeng"       %% "testcontainers-scala" % tcVersion % "test",
-    // "org.testcontainers" % "postgresql"            % PsqlContVersion,
-    // "org.postgresql"     % "postgresql"            % PSQLDriverVersion
+    "dev.zio"       %% "zio"       % zioVersion,
+    "org.scalatest" %% "scalatest" % scalatestVersion % "test"
+  )
+
+lazy val doobie =
+  libraryDependencies ++= Seq(
+    "org.tpolecat" %% "doobie-core"     % doobieVersion,
+    "org.tpolecat" %% "doobie-hikari"   % doobieVersion,
+    "org.tpolecat" %% "doobie-postgres" % doobieVersion
+  )
+
+lazy val psql =
+  libraryDependencies ++= Seq(
+    "com.dimafeng"       %% "testcontainers-scala" % tcVersion % "test",
+    "org.testcontainers" % "postgresql"            % psqlContainerVersion,
+    "org.postgresql"     % "postgresql"            % psqlDriverVersion
+    // "com.h2database"     % "h2"                    % h2Version
   )
 
 lazy val root = project
@@ -24,7 +35,8 @@ lazy val core = project
     commonSettings,
     name := "zio-saga-core",
     crossScalaVersions := allScala,
-    commonDeps
+    common,
+    doobie
   )
 
 lazy val examples = project
@@ -43,13 +55,11 @@ lazy val examples = project
       "org.http4s"        %% "http4s-circe"        % http4sVersion,
       "org.http4s"        %% "http4s-dsl"          % http4sVersion,
       "org.http4s"        %% "http4s-blaze-server" % http4sVersion,
-      "org.tpolecat"      %% "doobie-core"         % doobieVersion,
-      "org.tpolecat"      %% "doobie-hikari"       % doobieVersion,
-      "org.tpolecat"      %% "doobie-postgres"     % doobieVersion,
       // compilerPlugin("org.scalamacros"  %% "paradise"           % "2.1.0"),
       compilerPlugin("org.typelevel" %% "kind-projector"     % "0.11.0" cross CrossVersion.full),
       compilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1")
-    )
+    ),
+    doobie
   )
   .dependsOn(core % "compile->compile")
 
