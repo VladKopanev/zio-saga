@@ -4,7 +4,7 @@ import com.vladkopanev.zio.saga.Saga.Compensator
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 import zio.duration.Duration
-import zio.{DefaultRuntime, IO, Ref, Schedule, UIO, ZIO}
+import zio.{ DefaultRuntime, IO, Ref, Schedule, UIO, ZIO }
 
 class SagaSpec extends FlatSpec {
   import Saga._
@@ -22,7 +22,6 @@ class SagaSpec extends FlatSpec {
   }
 
   "Saga#zipWithPar" should "successfully run two Sagas in parallel" in new TestRuntime {
-
     val saga = (sleep(1000.millis) *> bookFlight compensate cancelFlight)
       .zipWithPar(sleep(1000.millis) *> bookHotel compensate cancelHotel)((_, _) => ())
 
@@ -34,12 +33,14 @@ class SagaSpec extends FlatSpec {
 
   it should "run both compensating actions in case right request fails" in new TestRuntime {
     val bookFlightS = sleep(1000.millis) *> bookFlight
-    val failHotel = sleep(100.millis) *> IO.fail(HotelBookingError())
+    val failHotel   = sleep(100.millis) *> IO.fail(HotelBookingError())
 
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
-      _ <- (bookFlightS compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))).zipWithPar(
-            failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ()).transact.orElse(IO.unit)
+      _ <- (bookFlightS compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))
+            .zipWithPar(failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ())
+            .transact
+            .orElse(IO.unit)
       log <- actionLog.get
     } yield log
 
@@ -49,12 +50,14 @@ class SagaSpec extends FlatSpec {
 
   it should "run both compensating actions in case left request fails" in new TestRuntime {
     val bookFlightS = sleep(1000.millis) *> bookFlight
-    val failHotel = sleep(100.millis) *> IO.fail(HotelBookingError())
+    val failHotel   = sleep(100.millis) *> IO.fail(HotelBookingError())
 
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
-      _ <- (failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))).zipWithPar(
-            bookFlightS compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))((_, _) => ()).transact.orElse(IO.unit)
+      _ <- (failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))
+            .zipWithPar(bookFlightS compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))((_, _) => ())
+            .transact
+            .orElse(IO.unit)
       log <- actionLog.get
     } yield log
 
@@ -64,12 +67,14 @@ class SagaSpec extends FlatSpec {
 
   it should "run both compensating actions in case both requests fails" in new TestRuntime {
     val failFlight = sleep(1000.millis) *> IO.fail(FlightBookingError())
-    val failHotel = sleep(1000.millis) *> IO.fail(HotelBookingError())
+    val failHotel  = sleep(1000.millis) *> IO.fail(HotelBookingError())
 
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
-      _ <- (failFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))).zipWithPar(
-            failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ()).transact.orElse(IO.unit)
+      _ <- (failFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))
+            .zipWithPar(failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ())
+            .transact
+            .orElse(IO.unit)
       log <- actionLog.get
     } yield log
 
@@ -79,13 +84,14 @@ class SagaSpec extends FlatSpec {
 
   it should "run compensating actions in order that is opposite to which requests finished" in new TestRuntime {
     val failFlight = sleep(1000.millis) *> IO.fail(FlightBookingError())
-    val failHotel = sleep(100.millis) *> IO.fail(HotelBookingError())
+    val failHotel  = sleep(100.millis) *> IO.fail(HotelBookingError())
 
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
-      _         <- (failFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))).zipWithPar(
-                    failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ())
-        .transact.orElse(IO.unit)
+      _ <- (failFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))
+            .zipWithPar(failHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ())
+            .transact
+            .orElse(IO.unit)
       log <- actionLog.get
     } yield log
 
@@ -95,17 +101,21 @@ class SagaSpec extends FlatSpec {
 
   "Saga#zipWithParAll" should "allow combining compensations in parallel" in new TestRuntime {
     val failFlight = IO.fail(FlightBookingError())
-    val failHotel = IO.fail(HotelBookingError())
+    val failHotel  = IO.fail(HotelBookingError())
 
-    def cancelFlightC(actionLog: Ref[Vector[String]]) = sleep(100.millis) *>
-      cancelFlight(actionLog.update(_ :+ "flight canceled"))
-    def cancelHotelC(actionLog: Ref[Vector[String]]) = sleep(100.millis) *>
-      cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+    def cancelFlightC(actionLog: Ref[Vector[String]]) =
+      sleep(100.millis) *>
+        cancelFlight(actionLog.update(_ :+ "flight canceled"))
+    def cancelHotelC(actionLog: Ref[Vector[String]]) =
+      sleep(100.millis) *>
+        cancelHotel(actionLog.update(_ :+ "hotel canceled"))
 
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
-      _         <- (failFlight compensate cancelFlightC(actionLog)).zipWithParAll(
-        failHotel compensate cancelHotelC(actionLog))((_, _) => ())((a, b) => a.zipPar(b).unit).transact.orElse(IO.unit)
+      _ <- (failFlight compensate cancelFlightC(actionLog))
+            .zipWithParAll(failHotel compensate cancelHotelC(actionLog))((_, _) => ())((a, b) => a.zipPar(b).unit)
+            .transact
+            .orElse(IO.unit)
       log <- actionLog.get
     } yield log
 
@@ -222,10 +232,10 @@ class SagaSpec extends FlatSpec {
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
       _ <- (for {
-        _ <- bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
-        _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
-        _ <- failCar compensateIfFail ((_: SagaError) => cancelCar(actionLog.update(_ :+ "car canceled")))
-      } yield ()).transact.orElse(ZIO.unit)
+            _ <- bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+            _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+            _ <- failCar compensateIfFail ((_: SagaError) => cancelCar(actionLog.update(_ :+ "car canceled")))
+          } yield ()).transact.orElse(ZIO.unit)
       log <- actionLog.get
     } yield log
 
@@ -238,10 +248,10 @@ class SagaSpec extends FlatSpec {
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
       _ <- (for {
-        _ <- bookCar compensateIfFail ((_: SagaError) => cancelCar(actionLog.update(_ :+ "car canceled")))
-        _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
-        _ <- failFlightBooking compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
-      } yield ()).transact.orElse(ZIO.unit)
+            _ <- bookCar compensateIfFail ((_: SagaError) => cancelCar(actionLog.update(_ :+ "car canceled")))
+            _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+            _ <- failFlightBooking compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+          } yield ()).transact.orElse(ZIO.unit)
       log <- actionLog.get
     } yield log
 
@@ -254,10 +264,10 @@ class SagaSpec extends FlatSpec {
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
       _ <- (for {
-        _ <- bookCar compensateIfSuccess ((_: PaymentInfo) => cancelCar(actionLog.update(_ :+ "car canceled")))
-        _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
-        _ <- failFlightBooking compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
-      } yield ()).transact.orElse(ZIO.unit)
+            _ <- bookCar compensateIfSuccess ((_: PaymentInfo) => cancelCar(actionLog.update(_ :+ "car canceled")))
+            _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+            _ <- failFlightBooking compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+          } yield ()).transact.orElse(ZIO.unit)
       log <- actionLog.get
     } yield log
 
@@ -270,10 +280,10 @@ class SagaSpec extends FlatSpec {
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
       _ <- (for {
-        _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
-        _ <- bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
-        _ <- failCar compensateIfSuccess ((_: PaymentInfo) => cancelCar(actionLog.update(_ :+ "car canceled")))
-      } yield ()).transact.orElse(ZIO.unit)
+            _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+            _ <- bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+            _ <- failCar compensateIfSuccess ((_: PaymentInfo) => cancelCar(actionLog.update(_ :+ "car canceled")))
+          } yield ()).transact.orElse(ZIO.unit)
       log <- actionLog.get
     } yield log
 
@@ -286,10 +296,12 @@ class SagaSpec extends FlatSpec {
     val sagaIO = for {
       actionLog <- Ref.make(Vector.empty[String])
       _ <- (for {
-        _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
-        _ <- bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
-        _ <- failCar compensate ((_: Either[SagaError, PaymentInfo]) => cancelCar(actionLog.update(_ :+ "car canceled")))
-      } yield ()).transact.orElse(ZIO.unit)
+            _ <- bookHotel compensate cancelHotel(actionLog.update(_ :+ "hotel canceled"))
+            _ <- bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
+            _ <- failCar compensate (
+                  (_: Either[SagaError, PaymentInfo]) => cancelCar(actionLog.update(_ :+ "car canceled"))
+                )
+          } yield ()).transact.orElse(ZIO.unit)
       log <- actionLog.get
     } yield log
 
@@ -313,7 +325,7 @@ class SagaSpec extends FlatSpec {
   }
 
   "Saga#transact" should "return original error in case compensator also fails" in new TestRuntime {
-    val expectedError = FlightBookingError()
+    val expectedError                           = FlightBookingError()
     val failFlight: IO[FlightBookingError, Any] = sleep(1000.millis) *> IO.fail(expectedError)
 
     val failCompensator = cancelFlight *> IO.fail(CarBookingError())
@@ -325,7 +337,7 @@ class SagaSpec extends FlatSpec {
   }
 
   it should "return original error in case compensator also fails 2" in new TestRuntime {
-    val expectedError = FlightBookingError()
+    val expectedError                           = FlightBookingError()
     val failFlight: IO[FlightBookingError, Any] = sleep(1000.millis) *> IO.fail(expectedError)
 
     val failCompensator = cancelFlight *> IO.fail(new RuntimeException())
@@ -339,11 +351,12 @@ class SagaSpec extends FlatSpec {
     val actualError = unsafeRun(saga)
     actualError shouldBe expectedError
   }
-
 }
+trait dummy
+object dummy
 
 trait TestRuntime extends DefaultRuntime {
-  def sleep(d: Duration): UIO[Unit] = ZIO.sleep(d).provide(Environment)
+  def sleep(d: Duration): UIO[Unit] = ZIO.sleep(d).provide(environment)
 }
 
 object SagaSpec {
@@ -384,5 +397,4 @@ object SagaSpec {
   def cancelCar(postAction: UIO[Any]): Compensator[Any, CarBookingError] = postAction *> IO.unit
 
   def refundPayments(paymentInfo: PaymentInfo*): Compensator[Any, PaymentFailedError] = IO.succeed(paymentInfo).unit
-
 }

@@ -1,7 +1,7 @@
 package com.vladkopanev.zio.saga
 
 import com.vladkopanev.zio.saga.Saga.Compensator
-import zio.{ Cause, Exit, Fiber, IO, RIO, Task, UIO, ZIO, ZSchedule }
+import zio.{ Cause, Exit, Fiber, IO, RIO, Schedule, Task, UIO, ZIO }
 
 /**
  * A Saga is an immutable structure that models a distributed transaction.
@@ -54,9 +54,8 @@ final class Saga[-R, +E, +A] private (
    * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`.
    * Both compensating actions would be executed in case of failure.
    * */
-  def zipWithPar[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])(f: (A, B) => C): Saga[R1, E1, C] = {
+  def zipWithPar[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])(f: (A, B) => C): Saga[R1, E1, C] =
     zipWithParAll(that)(f)((a, b) => a *> b)
-  }
 
   /**
    * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`
@@ -106,7 +105,6 @@ final class Saga[-R, +E, +A] private (
 }
 
 object Saga {
-
   type Compensator[-R, +E] = ZIO[R, E, Unit]
 
   /**
@@ -175,7 +173,7 @@ object Saga {
   def retryableCompensate[R, SR, E, A](
     request: ZIO[R, E, A],
     compensator: Compensator[R, E],
-    schedule: ZSchedule[SR, E, Any]
+    schedule: Schedule[SR, E, Any]
   ): Saga[R with SR, E, A] = {
     val retry: Compensator[R with SR, E] = compensator.retry(schedule.unit)
     compensate(request, retry)
@@ -199,10 +197,9 @@ object Saga {
   // $COVERAGE-ON$
 
   /**
-    * Extension methods for IO requests.
-    * */
+   * Extension methods for IO requests.
+   * */
   class Compensable[-R, +E, +A](val request: ZIO[R, E, A]) extends AnyVal {
-
     def compensate[R1 <: R, E1 >: E](c: Compensator[R1, E1]): Saga[R1, E1, A] =
       Saga.compensate(request, c)
 
@@ -217,11 +214,10 @@ object Saga {
 
     def retryableCompensate[R1 <: R, SR, E1 >: E](
       c: Compensator[R1, E1],
-      schedule: ZSchedule[SR, E1, Any]
+      schedule: Schedule[SR, E1, Any]
     ): Saga[R1 with SR, E1, A] =
       Saga.retryableCompensate(request, c, schedule)
 
     def noCompensate: Saga[R, E, A] = Saga.noCompensate(request)
   }
-
 }

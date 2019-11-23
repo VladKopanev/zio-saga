@@ -13,3 +13,8 @@ local.*
 website/node_modules
 website/build
 website/i18n/en.json
+
+# vscode 
+.bloop 
+.metals 
+project/.bloop
