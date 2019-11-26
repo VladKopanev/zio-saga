@@ -352,8 +352,6 @@ class SagaSpec extends FlatSpec {
     actualError shouldBe expectedError
   }
 }
-trait dummy
-object dummy
 
 trait TestRuntime extends DefaultRuntime {
   def sleep(d: Duration): UIO[Unit] = ZIO.sleep(d).provide(environment)
