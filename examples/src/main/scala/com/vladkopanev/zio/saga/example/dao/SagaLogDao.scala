@@ -24,18 +24,63 @@ trait SagaLogDao {
   def listUnfinishedSagas: ZIO[Any, Throwable, List[SagaInfo]]
 }
 
-class SagaLogDaoImpl extends SagaLogDao {
+import com.dimafeng.testcontainers.PostgreSQLContainer
+import doobie.util.transactor.Transactor
+import zio.Task
+
+/* case class PgInsert(tableName: String, columns: List[String], values: List[String])
+case class PgInsertResult(from: String, to: String)
+
+case class PostgresRepository(tnx: Transactor[Task]) {
+  import zio.interop.catz._
+
+  def createTable(table: Fragment): Task[Unit] =
+    table.update.run
+      .transact(tnx)
+      .foldM(err => {
+        print(err)
+        Task.fail(err)
+      }, _ => Task.succeed(()))
+
+  def write(insert: PgInsert): Task[Unit] =
+    sql"""INSERT INTO ${insert.tableName} (${insert.columns.mkString(",")}) VALUES (${insert.values.mkString(",")})""".update.run
+      .transact(tnx)
+      .foldM(err => Task.fail(err), _ => Task.succeed(insert))
+
+  def getByQuery(sql: Fragment): Task[List[String]] =
+    sql
+      .query[String]
+      .to[List]
+      .transact(tnx)
+      .foldM(err => Task.fail(err), list => Task.succeed(list))
+
+} */
+
+object SagaLogDaoImpl {
+  import zio.interop.catz._
+
+  def apply(xa: Transactor[Task]): SagaLogDaoImpl = new SagaLogDaoImpl(xa)
+
+  def getTransactor(container: PostgreSQLContainer): Transactor[Task] = Transactor.fromDriverManager[Task](
+    container.driverClassName,
+    container.jdbcUrl,
+    container.username,
+    container.password
+  )
+}
+
+class SagaLogDaoImpl(xa: Transactor[Task]) extends SagaLogDao {
   import doobie._
   import doobie.implicits._
   import doobie.postgres.implicits._
   import zio.interop.catz._
 
-  val xa = Transactor.fromDriverManager[Task](
-    "org.postgresql.Driver",
-    "jdbc:postgresql:Saga",
-    "postgres",
-    "root"
-  )
+  // val xa = Transactor.fromDriverManager[Task](
+  //   "org.postgresql.Driver",
+  //   "jdbc:postgresql:Saga",
+  //   "postgres",
+  //   "root"
+  // )
   implicit val han = LogHandler.jdkLogHandler
 
   override def finishSaga(sagaId: Long): ZIO[Any, Throwable, Unit] =
@@ -81,5 +126,4 @@ class SagaLogDaoImpl extends SagaLogDao {
         }
       )
   }
-
 }

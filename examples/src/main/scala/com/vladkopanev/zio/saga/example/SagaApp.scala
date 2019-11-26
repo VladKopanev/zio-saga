@@ -1,17 +1,20 @@
 package com.vladkopanev.zio.saga.example
 import com.vladkopanev.zio.saga.example.client.{
-    LoyaltyPointsServiceClientStub,
-    OrderServiceClientStub,
-    PaymentServiceClientStub
-  }
+  LoyaltyPointsServiceClientStub,
+  OrderServiceClientStub,
+  PaymentServiceClientStub
+}
 import com.vladkopanev.zio.saga.example.dao.SagaLogDaoImpl
 import com.vladkopanev.zio.saga.example.endpoint.SagaEndpoint
 import zio.interop.catz._
 import zio.console.putStrLn
 import zio.{ App, ZEnv, ZIO }
+import doobie.implicits._
+import doobie.util.fragment.Fragment
+import doobie.util.transactor.Transactor
+import zio.{ Task, ZIO }
 
 object SagaApp extends App {
-
   import org.http4s.server.blaze._
 
   implicit val runtime = this
@@ -25,15 +28,20 @@ object SagaApp extends App {
       paymentService <- PaymentServiceClientStub(clientMaxReqTimeout, flakyClient)
       loyaltyPoints  <- LoyaltyPointsServiceClientStub(clientMaxReqTimeout, flakyClient)
       orderService   <- OrderServiceClientStub(clientMaxReqTimeout, flakyClient)
-      logDao         = new SagaLogDaoImpl
-      orderSEC       <- OrderSagaCoordinatorImpl(paymentService, loyaltyPoints, orderService, logDao, sagaMaxReqTimeout)
-      app            = new SagaEndpoint(orderSEC).service
-      _              <- orderSEC.recoverSagas.fork
-      _              <- BlazeServerBuilder[TaskC].bindHttp(8042).withHttpApp(app).serve.compile.drain
+      xa = Transactor.fromDriverManager[Task](
+        "org.postgresql.Driver",
+        "jdbc:postgresql://localhost:5434/test_db",
+        "test_user",
+        "test_password"
+      )
+      logDao   = new SagaLogDaoImpl(xa)
+      orderSEC <- OrderSagaCoordinatorImpl(paymentService, loyaltyPoints, orderService, logDao, sagaMaxReqTimeout)
+      app      = new SagaEndpoint(orderSEC).service
+      _        <- orderSEC.recoverSagas.fork
+      _        <- BlazeServerBuilder[TaskC].bindHttp(8042).withHttpApp(app).serve.compile.drain
     } yield ()).foldM(
       e => putStrLn(s"Saga Coordinator fails with error $e, stopping server...").as(1),
       _ => putStrLn(s"Saga Coordinator finished successfully, stopping server...").as(0)
     )
   }
-
 }
