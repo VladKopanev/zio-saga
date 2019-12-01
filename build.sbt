@@ -90,7 +90,7 @@ lazy val core = project
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
       "dev.zio"       %% "zio"        % "1.0.0-RC16",
-      "org.scalatest" %% "scalatest"  % "3.0.8" % "test"
+      "org.scalatest" %% "scalatest"  % "3.1.0" % "test"
     )
   )
 

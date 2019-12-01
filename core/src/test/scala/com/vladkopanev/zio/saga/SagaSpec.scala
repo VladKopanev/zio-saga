@@ -1,12 +1,13 @@
 package com.vladkopanev.zio.saga
 
 import com.vladkopanev.zio.saga.Saga.Compensator
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers._
+import matchers.should.Matchers._
 import zio.duration.Duration
 import zio.{DefaultRuntime, IO, Ref, Schedule, UIO, ZIO}
+import org.scalatest.matchers
+import org.scalatest.flatspec.AnyFlatSpec
 
-class SagaSpec extends FlatSpec {
+class SagaSpec extends AnyFlatSpec {
   import Saga._
   import SagaSpec._
   import zio.duration._
