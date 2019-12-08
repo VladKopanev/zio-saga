@@ -36,7 +36,7 @@ object BuildHelper {
   val doobieVersion        = "0.8.6"
   val circeVersion         = "0.12.3"
   val psqlContainerVersion = "1.12.3"
-  val tcVersion            = "0.33.0"
+  val tcVersion            = "0.34.0"
   val psqlDriverVersion    = "42.2.8"
   val ssqlContVersion      = "1.12.3"
   val h2Version            = "1.4.200"
