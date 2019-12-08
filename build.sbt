@@ -36,7 +36,8 @@ lazy val core = project
     name := "zio-saga-core",
     crossScalaVersions := allScala,
     common,
-    doobie
+    doobie,
+    psql
   )
 
 lazy val examples = project

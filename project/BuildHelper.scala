@@ -29,9 +29,9 @@ object BuildHelper {
   )
 
   val zioVersion           = "1.0.0-RC17"
-  val zioCatsVersion       = "2.0.0.0-RC8"
+  val zioCatsVersion       = "2.0.0.0-RC10"
   val scalatestVersion     = "3.0.8"
-  val http4sVersion        = "0.21.0-M5"
+  val http4sVersion        = "0.21.0-M6"
   val log4CatsVersion      = "1.0.1"
   val doobieVersion        = "0.8.6"
   val circeVersion         = "0.12.3"
