@@ -9,8 +9,6 @@ import com.vladkopanev.zio.saga.example.endpoint.SagaEndpoint
 import zio.interop.catz._
 import zio.console.putStrLn
 import zio.{ App, ZEnv, ZIO }
-import doobie.implicits._
-import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
 import zio.{ Task, ZIO }
 

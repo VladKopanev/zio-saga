@@ -6,9 +6,7 @@ import org.scalatest.Matchers._
 import zio.duration.Duration
 import zio.{ DefaultRuntime, IO, Ref, Schedule, UIO, ZIO }
 
-
-import com.dimafeng.testcontainers.{ ForAllTestContainer, PostgreSQLContainer }
-
+import com.dimafeng.testcontainers.PostgreSQLContainer
 
 class SagaSpec extends FlatSpec {
   import Saga._
@@ -21,7 +19,7 @@ class SagaSpec extends FlatSpec {
   }
 
   "blah" should "test container" in new TestRuntime {
-    val container = new PostgreSQLContainer()
+    new PostgreSQLContainer()
   }
 
   "Saga#zipPar" should "successfully run two Sagas" in new TestRuntime {

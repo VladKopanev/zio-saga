@@ -18,9 +18,10 @@ lazy val doobie =
 
 lazy val psql =
   libraryDependencies ++= Seq(
-    "com.dimafeng"       %% "testcontainers-scala" % tcVersion,
-    "org.testcontainers" % "postgresql"            % psqlContainerVersion,
-    "org.postgresql"     % "postgresql"            % psqlDriverVersion
+    "com.dimafeng"   %% "testcontainers-scala-scalatest"  % tcVersion,
+    "com.dimafeng"   %% "testcontainers-scala-postgresql" % tcVersion,
+    "org.postgresql" % "postgresql"                       % psqlDriverVersion
+    // "org.testcontainers" % "postgresql"                       % psqlContainerVersion,
     // "com.h2database"     % "h2"                    % h2Version
   )
 
@@ -36,7 +37,8 @@ lazy val core = project
     name := "zio-saga-core",
     crossScalaVersions := allScala,
     common,
-    doobie
+    doobie,
+    psql
   )
 
 lazy val examples = project
@@ -45,6 +47,8 @@ lazy val examples = project
     commonSettings,
     scalaVersion := mainScala,
     coverageEnabled := false,
+    psql,
+    doobie,
     libraryDependencies ++= Seq(
       "ch.qos.logback"    % "logback-classic"      % logbackVersion,
       "dev.zio"           %% "zio-interop-cats"    % zioCatsVersion,
@@ -55,17 +59,13 @@ lazy val examples = project
       "org.http4s"        %% "http4s-circe"        % http4sVersion,
       "org.http4s"        %% "http4s-dsl"          % http4sVersion,
       "org.http4s"        %% "http4s-blaze-server" % http4sVersion,
-      //compilerPlugin("org.scalamacros"  %% "paradise"           % "2.1.0"),
+//      compilerPlugin("org.scalamacros" %% "paradise"           % "2.1.1"),
       compilerPlugin("org.typelevel" %% "kind-projector"     % "0.11.0" cross CrossVersion.full),
       compilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1")
-    ),
-    doobie,
-    psql
+    )
   )
   .dependsOn(core % "compile->compile")
 
 addCommandAlias("rel", "reload")
-//addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
-addCommandAlias("fmt", "all scalafmtSbt")
-addCommandAlias("lint", "; compile:scalafix --check ; test:scalafix --check")
+addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("fix", "all compile:scalafix test:scalafix")
