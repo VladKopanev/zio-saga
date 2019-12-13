@@ -3,6 +3,7 @@ package com.vladkopanev.zio.saga
 import com.vladkopanev.zio.saga.Saga.Compensator
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
+import zio.clock.Clock
 import zio.duration.Duration
 import zio.{DefaultRuntime, IO, Ref, Schedule, UIO, ZIO}
 
@@ -343,7 +344,7 @@ class SagaSpec extends FlatSpec {
 }
 
 trait TestRuntime extends DefaultRuntime {
-  def sleep(d: Duration): UIO[Unit] = ZIO.sleep(d).provide(Environment)
+  def sleep(d: Duration): UIO[Unit] = ZIO.sleep(d).provide(Clock.Live)
 }
 
 object SagaSpec {
