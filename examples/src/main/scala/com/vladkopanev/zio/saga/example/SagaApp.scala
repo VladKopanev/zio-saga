@@ -12,6 +12,8 @@ import zio.{ App, ZEnv, ZIO }
 import doobie.util.transactor.Transactor
 import zio.{ Task, ZIO }
 
+import com.dimafeng.testcontainers.PostgreSQLContainer
+
 object SagaApp extends App {
   import org.http4s.server.blaze._
 
@@ -26,13 +28,14 @@ object SagaApp extends App {
       paymentService <- PaymentServiceClientStub(clientMaxReqTimeout, flakyClient)
       loyaltyPoints  <- LoyaltyPointsServiceClientStub(clientMaxReqTimeout, flakyClient)
       orderService   <- OrderServiceClientStub(clientMaxReqTimeout, flakyClient)
+      cont           = PostgreSQLContainer
       xa = Transactor.fromDriverManager[Task](
         "org.postgresql.Driver",
         "jdbc:postgresql://localhost:5434/test_db",
         "test_user",
         "test_password"
       )
-      logDao   = new SagaLogDaoImpl(xa)
+      logDao = new SagaLogDaoImpl(xa)
       orderSEC <- OrderSagaCoordinatorImpl(paymentService, loyaltyPoints, orderService, logDao, sagaMaxReqTimeout)
       app      = new SagaEndpoint(orderSEC).service
       _        <- orderSEC.recoverSagas.fork

@@ -3,26 +3,28 @@ import BuildHelper._
 
 name := "zio-saga"
 
-lazy val common =
+lazy val testDeps = libraryDependencies ++= Seq(
+  "org.scalatest" %% "scalatest" % scalatestVersion % "test"
+)
+
+lazy val zioDeps =
   libraryDependencies ++= Seq(
-    "dev.zio"       %% "zio"       % zioVersion,
-    "org.scalatest" %% "scalatest" % scalatestVersion % "test"
+    "dev.zio" %% "zio"             % zioVersion,
+    "dev.zio" %% "zio-macros-core" % zioMacrosVersion
   )
 
-lazy val doobie =
+lazy val doobieDeps =
   libraryDependencies ++= Seq(
     "org.tpolecat" %% "doobie-core"     % doobieVersion,
     "org.tpolecat" %% "doobie-hikari"   % doobieVersion,
     "org.tpolecat" %% "doobie-postgres" % doobieVersion
   )
 
-lazy val psql =
+lazy val psqlDeps =
   libraryDependencies ++= Seq(
     "com.dimafeng"   %% "testcontainers-scala-scalatest"  % tcVersion,
     "com.dimafeng"   %% "testcontainers-scala-postgresql" % tcVersion,
     "org.postgresql" % "postgresql"                       % psqlDriverVersion
-    // "org.testcontainers" % "postgresql"                       % psqlContainerVersion,
-    // "com.h2database"     % "h2"                    % h2Version
   )
 
 lazy val root = project
@@ -36,9 +38,10 @@ lazy val core = project
     commonSettings,
     name := "zio-saga-core",
     crossScalaVersions := allScala,
-    common,
-    doobie,
-    psql
+    zioDeps,
+    doobieDeps,
+    psqlDeps,
+    testDeps
   )
 
 lazy val examples = project
@@ -47,11 +50,8 @@ lazy val examples = project
     commonSettings,
     scalaVersion := mainScala,
     coverageEnabled := false,
-    psql,
-    doobie,
     libraryDependencies ++= Seq(
       "ch.qos.logback"    % "logback-classic"      % logbackVersion,
-      "dev.zio"           %% "zio-interop-cats"    % zioCatsVersion,
       "io.chrisdavenport" %% "log4cats-core"       % log4CatsVersion,
       "io.chrisdavenport" %% "log4cats-slf4j"      % log4CatsVersion,
       "io.circe"          %% "circe-generic"       % circeVersion,
@@ -59,9 +59,13 @@ lazy val examples = project
       "org.http4s"        %% "http4s-circe"        % http4sVersion,
       "org.http4s"        %% "http4s-dsl"          % http4sVersion,
       "org.http4s"        %% "http4s-blaze-server" % http4sVersion,
-//      compilerPlugin("org.scalamacros" %% "paradise"           % "2.1.1"),
-      compilerPlugin("org.typelevel" %% "kind-projector"     % "0.11.0" cross CrossVersion.full),
-      compilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1")
+      compilerPlugin("org.scalamacros" %% "paradise"           % "2.1.1"),
+      compilerPlugin("org.typelevel"   %% "kind-projector"     % "0.11.0" cross CrossVersion.full),
+      compilerPlugin("com.olegpy"      %% "better-monadic-for" % "0.3.1"),
+      psqlDeps,
+      doobieDeps,
+      zioDeps,
+      testDeps
     )
   )
   .dependsOn(core % "compile->compile")
