@@ -13,9 +13,7 @@ trait UserRepository {
 object UserRepository {
   trait Service {
     def get(id: Long): ZIO[Any, ExpectedFailure, Option[User]]
-
     def create(user: User): ZIO[Any, ExpectedFailure, Unit]
-
     def delete(id: Long): ZIO[Any, ExpectedFailure, Unit]
   }
 }
@@ -24,13 +22,12 @@ final case class InMemoryUserRepository(ref: Ref[Map[Long, User]]) extends UserR
   def get(id: Long): ZIO[Any, ExpectedFailure, Option[User]] =
     for {
       user <- ref.get.map(_.get(id))
-      u <- user match {
-            case Some(s) => ZIO.some(s)
-            case None    => ZIO.none
-          }
-    } yield u
+      usr <- user match {
+              case Some(s) => ZIO.some(s)
+              case None    => ZIO.none
+            }
+    } yield usr
 
-  def create(user: User): ZIO[Any, ExpectedFailure, Unit] = ref.update(map => map.+(user.id -> user)).unit
-
-  def delete(id: Long): ZIO[Any, ExpectedFailure, Unit] = ref.update(map => map.-(id)).unit
+  def create(user: User): ZIO[Any, ExpectedFailure, Unit] = ref.update(_ + (user.id -> user)).unit
+  def delete(id: Long): ZIO[Any, ExpectedFailure, Unit]   = ref.update(_ - id).unit
 }
