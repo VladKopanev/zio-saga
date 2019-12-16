@@ -7,7 +7,7 @@ import com.vladkopanev.zio.saga.example.client.{
     OrderServiceClient,
     PaymentServiceClient
   }
-import com.vladkopanev.zio.saga.example.dao.SagaLogDao
+import com.vladkopanev.zio.saga.example.repo._
 import com.vladkopanev.zio.saga.example.model.{ OrderSagaData, OrderSagaError, SagaStep }
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
@@ -25,7 +25,7 @@ class OrderSagaCoordinatorImpl(
   paymentServiceClient: PaymentServiceClient,
   loyaltyPointsServiceClient: LoyaltyPointsServiceClient,
   orderServiceClient: OrderServiceClient,
-  sagaLogDao: SagaLogDao,
+  sagaLogDao: DoobieRepository,
   maxRequestTimeout: Int,
   logger: StructuredLogger[Task]
 ) extends OrderSagaCoordinator {
@@ -156,7 +156,7 @@ object OrderSagaCoordinatorImpl {
     paymentServiceClient: PaymentServiceClient,
     loyaltyPointsServiceClient: LoyaltyPointsServiceClient,
     orderServiceClient: OrderServiceClient,
-    sagaLogDao: SagaLogDao,
+    sagaLogDao: DoobieRepository,
     maxRequestTimeout: Int
   ): Task[OrderSagaCoordinatorImpl] =
     Slf4jLogger

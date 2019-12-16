@@ -2,7 +2,7 @@ package com.vladkopanev.zio.saga.example.repo
 
 import java.util.UUID
 import io.circe.Json
-import zio.{ Task, ZIO }
+import zio.{ ZIO }
 import com.vladkopanev.zio.saga.example.model.{ SagaInfo, SagaStep }
 
 // @accessible
