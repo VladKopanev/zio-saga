@@ -11,7 +11,7 @@ import com.vladkopanev.zio.saga.example.dao.SagaLogDao
 import com.vladkopanev.zio.saga.example.model.{ OrderSagaData, OrderSagaError, SagaStep }
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import zio.{ Task, ZIO, ZSchedule }
+import zio.{ Schedule, Task, ZIO }
 
 import scala.concurrent.TimeoutException
 
@@ -101,7 +101,7 @@ class OrderSagaCoordinatorImpl(
         compensating = true
       )
 
-    val expSchedule = ZSchedule.exponential(1.second)
+    val expSchedule = Schedule.exponential(1.second)
     def buildSaga(sagaId: Long, executedSteps: List[SagaStep]) =
       for {
         _ <- collectPayments(executedSteps, sagaId) retryableCompensate (refundPayments(executedSteps, sagaId), expSchedule)
@@ -119,7 +119,7 @@ class OrderSagaCoordinatorImpl(
       sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId, data))(ZIO.succeed)
       executed <- sagaLogDao.listExecutedSteps(sagaId)
       _ <- buildSaga(sagaId, executed).transact.tapBoth({
-            case e: OrderSagaError => sagaLogDao.finishSaga(sagaId)
+            case _: OrderSagaError => sagaLogDao.finishSaga(sagaId)
             case _                 => ZIO.unit
           }, _ => sagaLogDao.finishSaga(sagaId))
       _ <- mdcLog.info("Saga execution finished")
@@ -136,7 +136,7 @@ class OrderSagaCoordinatorImpl(
             ZIO.fromEither(sagaInfo.data.as[OrderSagaData]).flatMap {
               case OrderSagaData(userId, orderId, money, bonuses) =>
                 runSaga(userId, orderId, money, bonuses, Some(sagaInfo.id)).catchSome {
-                  case e: OrderSagaError => ZIO.unit
+                  case _: OrderSagaError => ZIO.unit
                 }
             }
           }
