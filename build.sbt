@@ -89,9 +89,9 @@ lazy val core = project
     name := "zio-saga-core",
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
-      "dev.zio"       %% "zio"          % "1.0.0-RC17",
-      "dev.zio"       %% "zio-test"     % "1.0.0-RC17" % "test",
-      "dev.zio"       %% "zio-test-sbt" % "1.0.0-RC17" % "test"
+      "dev.zio"       %% "zio"          % "1.0.0-RC18",
+      "dev.zio"       %% "zio-test"     % "1.0.0-RC18" % "test",
+      "dev.zio"       %% "zio-test-sbt" % "1.0.0-RC18" % "test"
     ),
     testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
   )
