@@ -2,16 +2,12 @@ package com.vladkopanev.zio.saga.example
 
 import java.util.UUID
 
-import com.vladkopanev.zio.saga.example.client.{
-    LoyaltyPointsServiceClient,
-    OrderServiceClient,
-    PaymentServiceClient
-  }
+import com.vladkopanev.zio.saga.example.client.{LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient}
 import com.vladkopanev.zio.saga.example.dao.SagaLogDao
-import com.vladkopanev.zio.saga.example.model.{ OrderSagaData, OrderSagaError, SagaStep }
+import com.vladkopanev.zio.saga.example.model.{OrderSagaData, OrderSagaError, SagaStep}
 import io.chrisdavenport.log4cats.StructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import zio.{ Schedule, Task, ZIO }
+import zio.{Schedule, Task, ZIO}
 
 import scala.concurrent.TimeoutException
 
@@ -116,7 +112,7 @@ class OrderSagaCoordinatorImpl(
 
     for {
       _        <- mdcLog.info("Saga execution started")
-      sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId, data))(ZIO.succeed)
+      sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId, data))(i => Task.succeed(i))
       executed <- sagaLogDao.listExecutedSteps(sagaId)
       _ <- buildSaga(sagaId, executed).transact.tapBoth({
             case _: OrderSagaError => sagaLogDao.finishSaga(sagaId)
