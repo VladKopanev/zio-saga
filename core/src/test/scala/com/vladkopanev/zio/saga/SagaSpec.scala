@@ -151,7 +151,7 @@ object SagaSpec
               car2      = bookCarS2(actionLog) compensate cancelCar
               _         <- Saga.collectAllPar(flight, hotel, car, car2).transact
               log       <- actionLog.get
-            } yield assert(log)(equalTo(Vector("car2 is booked", "car is booked", "hotel is booked", "flight is booked")))
+            } yield assert(log)(hasSameElements(Vector("car2 is booked", "car is booked", "hotel is booked", "flight is booked")))
           },
           testM("should run all compensating actions in case of error") {
             val failFlightBooking = sleep(1000.millis) *> IO.fail(FlightBookingError())
@@ -167,7 +167,7 @@ object SagaSpec
               car2      = bookCarS2 compensate cancelCar(actionLog.update(_ :+ "car2 canceled"))
               _         <- Saga.collectAllPar(List(flight, hotel, car, car2)).transact.orElse(IO.unit)
               log       <- actionLog.get
-            } yield assert(log)(equalTo(Vector("flight canceled", "hotel canceled", "car canceled", "car2 canceled")))
+            } yield assert(log)(hasSameElements(Vector("flight canceled", "hotel canceled", "car canceled", "car2 canceled")))
           }
         ),
         suite("Saga#succeed")(testM("should construct saga that will succeed") {
