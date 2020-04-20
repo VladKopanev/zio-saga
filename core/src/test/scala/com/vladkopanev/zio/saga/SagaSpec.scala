@@ -29,7 +29,7 @@ object SagaSpec
                     .zipWithPar(sleep(1000.millis) *> bookHotel compensate cancelHotel)((_, _) => ())
                     .transact
               endTime <- currentTime(TimeUnit.MILLISECONDS).provideLayer(Clock.live)
-            } yield assert(endTime - startTime)(isLessThanEqualTo(1500L))
+            } yield assert(endTime - startTime)(isLessThanEqualTo(3000L))
           },
           testM("should run both compensating actions in case right request fails") {
             val bookFlightS = sleep(1000.millis) *> bookFlight
