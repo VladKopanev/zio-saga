@@ -7,34 +7,29 @@ import zio.clock.{ currentTime, Clock }
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._
+import zio.test.environment.TestEnvironment
 
 import Saga._
 import SagaSpecUtil._
 
 object SagaSpec
-    extends DefaultRunnableSpec(
-      suite("SagaSpec")(
+    extends DefaultRunnableSpec {
+      override val spec: ZSpec[TestEnvironment, Any] = suite("SagaSpec")(
         suite("Saga#map")(testM("should change the result value with provided function") {
-          assertM(
-            Saga.compensate(ZIO.succeed(1), ZIO.unit).map(_.toString).transact,
-            equalTo("1")
-          )
+          assertM(Saga.compensate(ZIO.succeed(1), ZIO.unit).map(_.toString).transact)(equalTo("1"))
         }),
         suite("Saga#zipPar")(testM("should successfully run two Sagas") {
-          assertM(
-            (bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)).transact,
-            equalTo((FlightPayment, HotelPayment))
-          )
+          assertM((bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)).transact)(equalTo((FlightPayment, HotelPayment)))
         }),
         suite("Saga#zipWithPar")(
           testM("should successfully run two Sagas in parallel") {
             for {
-              startTime <- currentTime(TimeUnit.MILLISECONDS).provide(Clock.Live)
+              startTime <- currentTime(TimeUnit.MILLISECONDS).provideLayer(Clock.live)
               _ <- (sleep(1000.millis) *> bookFlight compensate cancelFlight)
                     .zipWithPar(sleep(1000.millis) *> bookHotel compensate cancelHotel)((_, _) => ())
                     .transact
-              endTime <- currentTime(TimeUnit.MILLISECONDS).provide(Clock.Live)
-            } yield assert(endTime - startTime, isLessThanEqualTo(1500L))
+              endTime <- currentTime(TimeUnit.MILLISECONDS).provideLayer(Clock.live)
+            } yield assert(endTime - startTime)(isLessThanEqualTo(3000L))
           },
           testM("should run both compensating actions in case right request fails") {
             val bookFlightS = sleep(1000.millis) *> bookFlight
@@ -47,7 +42,7 @@ object SagaSpec
                     .transact
                     .orElse(IO.unit)
               log <- actionLog.get
-            } yield assert(log, equalTo(Vector("flight canceled", "hotel canceled")))
+            } yield assert(log)(equalTo(Vector("flight canceled", "hotel canceled")))
           },
           testM("should run both compensating actions in case left request fails") {
             val bookFlightS = sleep(1000.millis) *> bookFlight
@@ -62,7 +57,7 @@ object SagaSpec
                     .transact
                     .orElse(IO.unit)
               log <- actionLog.get
-            } yield assert(log, equalTo(Vector("flight canceled", "hotel canceled")))
+            } yield assert(log)(equalTo(Vector("flight canceled", "hotel canceled")))
           },
           testM("should run both compensating actions in case both requests fails") {
             val failFlight = sleep(1000.millis) *> IO.fail(FlightBookingError())
@@ -75,7 +70,7 @@ object SagaSpec
                     .transact
                     .orElse(IO.unit)
               log <- actionLog.get
-            } yield assert(log, hasSameElements(Vector("flight canceled", "hotel canceled")))
+            } yield assert(log)(hasSameElements(Vector("flight canceled", "hotel canceled")))
           },
           testM("should run compensating actions in order that is opposite to which requests finished") {
             val failFlight = sleep(1000.millis) *> IO.fail(FlightBookingError())
@@ -88,7 +83,7 @@ object SagaSpec
                     .transact
                     .orElse(IO.unit)
               log <- actionLog.get
-            } yield assert(log, equalTo(Vector("flight canceled", "hotel canceled")))
+            } yield assert(log)(equalTo(Vector("flight canceled", "hotel canceled")))
           }
         ),
         suite("Saga#zipWithParAll")(testM("should allow combining compensations in parallel") {
@@ -109,7 +104,7 @@ object SagaSpec
                   .transact
                   .orElse(IO.unit)
             log <- actionLog.get
-          } yield assert(log, hasSameElements(Vector("flight canceled", "hotel canceled")))
+          } yield assert(log)(hasSameElements(Vector("flight canceled", "hotel canceled")))
         }),
         suite("Saga#retryableCompensate")(
           testM("should construct Saga that repeats compensating action once") {
@@ -125,7 +120,7 @@ object SagaSpec
               _ <- (failFlight retryableCompensate (failCompensator(actionLog), Schedule.once)).transact
                     .orElse(ZIO.unit)
               log <- actionLog.get
-            } yield assert(log, equalTo(Vector.fill(2)("Compensation failed")))
+            } yield assert(log)(equalTo(Vector.fill(2)("Compensation failed")))
           },
           testM("should work with other combinators") {
             val saga = for {
@@ -134,7 +129,7 @@ object SagaSpec
               _ <- bookCar compensate cancelCar
             } yield ()
 
-            assertM(saga.transact, anything)
+            assertM(saga.transact)(anything)
           }
         ),
         suite("Saga#collectAllPar")(
@@ -156,10 +151,7 @@ object SagaSpec
               car2      = bookCarS2(actionLog) compensate cancelCar
               _         <- Saga.collectAllPar(flight, hotel, car, car2).transact
               log       <- actionLog.get
-            } yield assert(
-              log,
-              equalTo(Vector("car2 is booked", "car is booked", "hotel is booked", "flight is booked"))
-            )
+            } yield assert(log)(hasSameElements(Vector("car2 is booked", "car is booked", "hotel is booked", "flight is booked")))
           },
           testM("should run all compensating actions in case of error") {
             val failFlightBooking = sleep(1000.millis) *> IO.fail(FlightBookingError())
@@ -175,7 +167,7 @@ object SagaSpec
               car2      = bookCarS2 compensate cancelCar(actionLog.update(_ :+ "car2 canceled"))
               _         <- Saga.collectAllPar(List(flight, hotel, car, car2)).transact.orElse(IO.unit)
               log       <- actionLog.get
-            } yield assert(log, equalTo(Vector("flight canceled", "hotel canceled", "car canceled", "car2 canceled")))
+            } yield assert(log)(hasSameElements(Vector("flight canceled", "hotel canceled", "car canceled", "car2 canceled")))
           }
         ),
         suite("Saga#succeed")(testM("should construct saga that will succeed") {
@@ -189,7 +181,7 @@ object SagaSpec
                   _ <- failFlightBooking compensate cancelFlight(actionLog.update(_ :+ s"flight canceled $i"))
                 } yield ()).transact.orElse(ZIO.unit)
             log <- actionLog.get
-          } yield assert(log, equalTo(Vector(s"flight canceled $stub")))
+          } yield assert(log)(equalTo(Vector(s"flight canceled $stub")))
         }),
         suite("Saga#fail")(testM("should construct saga that will fail") {
           val failFlightBooking = IO.fail(FlightBookingError())
@@ -201,7 +193,7 @@ object SagaSpec
                   _ <- failFlightBooking compensate cancelFlight(actionLog.update(_ :+ s"flight canceled $i"))
                 } yield ()).transact.orElse(ZIO.unit)
             log <- actionLog.get
-          } yield assert(log, equalTo(Vector.empty))
+          } yield assert(log)(equalTo(Vector.empty))
         }),
         suite("Saga#compensateIfFail")(
           testM("should construct saga step that executes it's compensation if it's requests fails") {
@@ -214,7 +206,7 @@ object SagaSpec
                     _ <- failCar compensateIfFail ((_: SagaError) => cancelCar(actionLog.update(_ :+ "car canceled")))
                   } yield ()).transact.orElse(ZIO.unit)
               log <- actionLog.get
-            } yield assert(log, equalTo(Vector("car canceled", "hotel canceled", "flight canceled")))
+            } yield assert(log)(equalTo(Vector("car canceled", "hotel canceled", "flight canceled")))
           },
           testM("should construct saga step that do not executes it's compensation if it's request succeeds") {
             val failFlightBooking = IO.fail(FlightBookingError())
@@ -226,7 +218,7 @@ object SagaSpec
                     _ <- failFlightBooking compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
                   } yield ()).transact.orElse(ZIO.unit)
               log <- actionLog.get
-            } yield assert(log, equalTo(Vector("flight canceled", "hotel canceled")))
+            } yield assert(log)(equalTo(Vector("flight canceled", "hotel canceled")))
           }
         ),
         suite("Saga#compensateIfSuccess")(
@@ -244,7 +236,7 @@ object SagaSpec
                     _ <- failFlightBooking compensate cancelFlight(actionLog.update(_ :+ "flight canceled"))
                   } yield ()).transact.orElse(ZIO.unit)
               log <- actionLog.get
-            } yield assert(log, equalTo(Vector("flight canceled", "hotel canceled", "car canceled")))
+            } yield assert(log)(equalTo(Vector("flight canceled", "hotel canceled", "car canceled")))
           },
           testM("should construct saga step that do not executes it's compensation if it's request fails") {
             val failCar = IO.fail(CarBookingError())
@@ -258,7 +250,7 @@ object SagaSpec
                         )
                   } yield ()).transact.orElse(ZIO.unit)
               log <- actionLog.get
-            } yield assert(log, equalTo(Vector("flight canceled", "hotel canceled")))
+            } yield assert(log)(equalTo(Vector("flight canceled", "hotel canceled")))
           }
         ),
         suite("Saga#compensate")(
@@ -274,7 +266,7 @@ object SagaSpec
                         )
                   } yield ()).transact.orElse(ZIO.unit)
               log <- actionLog.get
-            } yield assert(log, equalTo(Vector("car canceled", "flight canceled", "hotel canceled")))
+            } yield assert(log)(equalTo(Vector("car canceled", "flight canceled", "hotel canceled")))
           }
         ),
         suite("Saga#flatten")(
@@ -292,7 +284,7 @@ object SagaSpec
                     .transact
                     .orElse(ZIO.unit)
               log <- actionLog.get
-            } yield assert(log, equalTo(Vector("car canceled", "hotel canceled", "flight canceled")))
+            } yield assert(log)(equalTo(Vector("car canceled", "hotel canceled", "flight canceled")))
           }
         ),
         suite("Saga#transact")(
@@ -304,7 +296,7 @@ object SagaSpec
 
             val saga = (failFlight compensate failCompensator).transact.catchAll(e => IO.succeed(e))
 
-            assertM(saga, equalTo(expectedError))
+            assertM(saga)(equalTo(expectedError))
           },
           testM("should return original error in case compensator also fails 2") {
             val expectedError                                   = FlightBookingError()
@@ -318,15 +310,15 @@ object SagaSpec
               _ <- bookCar compensate cancelCar
             } yield ()).transact.catchAll[Clock, Any, Any](e => IO.succeed(e))
 
-            assertM(saga, equalTo(expectedError))
+            assertM(saga)(equalTo(expectedError))
           }
         )
       )
-    )
+}
 
 object SagaSpecUtil {
 
-  def sleep(d: Duration): URIO[Clock, Unit] = ZIO.sleep(d).provide(Clock.Live)
+  def sleep(d: Duration): URIO[Clock, Unit] = ZIO.sleep(d).provideLayer(Clock.live)
 
   sealed trait SagaError extends Product with Serializable {
     def message: String

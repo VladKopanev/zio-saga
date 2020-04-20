@@ -116,7 +116,7 @@ class OrderSagaCoordinatorImpl(
 
     for {
       _        <- mdcLog.info("Saga execution started")
-      sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId, data))(ZIO.succeed)
+      sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId, data))(i => Task.succeed(i))
       executed <- sagaLogDao.listExecutedSteps(sagaId)
       _ <- buildSaga(sagaId, executed).transact.tapBoth({
             case _: OrderSagaError => sagaLogDao.finishSaga(sagaId)
