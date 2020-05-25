@@ -89,17 +89,17 @@ lazy val core = project
     name := "zio-saga-core",
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
-      "dev.zio"       %% "zio"          % "1.0.0-RC18-2",
-      "dev.zio"       %% "zio-test"     % "1.0.0-RC18-2" % "test",
-      "dev.zio"       %% "zio-test-sbt" % "1.0.0-RC18-2" % "test"
+      "dev.zio"       %% "zio"          % "1.0.0-RC19-2",
+      "dev.zio"       %% "zio-test"     % "1.0.0-RC19-2" % "test",
+      "dev.zio"       %% "zio-test-sbt" % "1.0.0-RC19-2" % "test"
     ),
     testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
   )
 
-val http4sVersion   = "0.21.0-M2"
-val log4CatsVersion = "1.0.1"
-val doobieVersion   = "0.8.4"
-val circeVersion    = "0.12.3"
+val http4sVersion   = "0.21.4"
+val log4CatsVersion = "1.1.1"
+val doobieVersion   = "0.9.0"
+val circeVersion    = "0.13.0"
 
 lazy val examples = project
   .in(file("examples"))
@@ -109,7 +109,7 @@ lazy val examples = project
     coverageEnabled := false,
     libraryDependencies ++= Seq(
       "ch.qos.logback"    % "logback-classic"          % "1.2.3",
-      "dev.zio"           %% "zio-interop-cats"        % "2.0.0.0-RC7",
+      "dev.zio"           %% "zio-interop-cats"        % "2.0.0.0-RC14",
       "io.chrisdavenport" %% "log4cats-core"           % log4CatsVersion,
       "io.chrisdavenport" %% "log4cats-slf4j"          % log4CatsVersion,
       "io.circe"          %% "circe-generic"           % circeVersion,
