@@ -3,6 +3,7 @@ package com.vladkopanev.zio.saga.example.dao
 import java.util.UUID
 
 import com.vladkopanev.zio.saga.example.model.{ SagaInfo, SagaStep }
+import doobie.implicits.javatime.JavaTimeInstantMeta
 import io.circe.Json
 import org.postgresql.util.PGobject
 import zio.{ Task, ZIO }
