@@ -6,6 +6,8 @@ import zio.interop.catz._
 import zio.console.putStrLn
 import zio.{App, ExitCode, ZEnv, ZIO}
 
+import scala.concurrent.ExecutionContext
+
 object SagaApp extends App {
 
   import org.http4s.server.blaze._
@@ -25,7 +27,7 @@ object SagaApp extends App {
       orderSEC       <- OrderSagaCoordinatorImpl(paymentService, loyaltyPoints, orderService, logDao, sagaMaxReqTimeout)
       app            = new SagaEndpoint(orderSEC).service
       _              <- orderSEC.recoverSagas.fork
-      _              <- BlazeServerBuilder[TaskC].bindHttp(8042).withHttpApp(app).serve.compile.drain
+      _              <- BlazeServerBuilder[TaskC](ExecutionContext.global).bindHttp(8042).withHttpApp(app).serve.compile.drain
     } yield ()).foldM(
       e => putStrLn(s"Saga Coordinator fails with error $e, stopping server...").as(ExitCode.failure),
       _ => putStrLn(s"Saga Coordinator finished successfully, stopping server...").as(ExitCode.success)
