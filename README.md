@@ -17,7 +17,7 @@ proper composition of effects and associated compensating actions.
 
 Add zio-saga dependency to your `build.sbt`:
 
-`libraryDependencies += "com.vladkopanev" %% "zio-saga-core" % "0.2.0"`
+`libraryDependencies += "com.vladkopanev" %% "zio-saga-core" % "0.3.0"`
 
 # Example of usage:
 
