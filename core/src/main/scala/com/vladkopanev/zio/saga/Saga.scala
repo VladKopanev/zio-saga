@@ -1,7 +1,8 @@
 package com.vladkopanev.zio.saga
 
 import com.vladkopanev.zio.saga.Saga.Compensator
-import zio.{ Cause, Exit, Fiber, IO, RIO, Schedule, Task, UIO, ZIO }
+import zio.clock.Clock
+import zio.{Cause, Exit, Fiber, IO, RIO, Schedule, Task, UIO, ZIO}
 
 /**
  * A Saga is an immutable structure that models a distributed transaction.
@@ -175,8 +176,8 @@ object Saga {
     request: ZIO[R, E, A],
     compensator: Compensator[R, E],
     schedule: Schedule[SR, E, Any]
-  ): Saga[R with SR, E, A] = {
-    val retry: Compensator[R with SR, E] = compensator.retry(schedule.unit)
+  ): Saga[R with SR with Clock, E, A] = {
+    val retry: Compensator[R with SR with Clock, E] = compensator.retry(schedule.unit)
     compensate(request, retry)
   }
 
@@ -217,7 +218,7 @@ object Saga {
     def retryableCompensate[R1 <: R, SR, E1 >: E](
       c: Compensator[R1, E1],
       schedule: Schedule[SR, E1, Any]
-    ): Saga[R1 with SR, E1, A] =
+    ): Saga[R1 with SR with Clock, E1, A] =
       Saga.retryableCompensate(request, c, schedule)
 
     def noCompensate: Saga[R, E, A] = Saga.noCompensate(request)
