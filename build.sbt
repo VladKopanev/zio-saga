@@ -88,7 +88,6 @@ lazy val commonSettings = Seq(
 
 lazy val root = project
   .in(file("."))
-  .dependsOn(examples)
   .aggregate(core)
 
 lazy val core = project
