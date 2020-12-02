@@ -105,7 +105,7 @@ lazy val core = project
     testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
   )
 
-val http4sVersion   = "0.21.4"
+val http4sVersion   = "0.21.11"
 val log4CatsVersion = "1.1.1"
 val doobieVersion   = "0.9.0"
 val circeVersion    = "0.13.0"
@@ -130,7 +130,7 @@ lazy val examples = project
       "org.tpolecat"      %% "doobie-hikari"           % doobieVersion,
       "org.tpolecat"      %% "doobie-postgres"         % doobieVersion,
      // compilerPlugin("org.scalamacros"  %% "paradise"           % "2.1.0"),
-      compilerPlugin("org.typelevel"    %% "kind-projector"     % "0.11.0" cross CrossVersion.full),
+      compilerPlugin("org.typelevel"    %% "kind-projector"     % "0.11.2" cross CrossVersion.full),
       compilerPlugin("com.olegpy"       %% "better-monadic-for" % "0.3.1")
     )
   )
