@@ -3,8 +3,8 @@ import sbt.file
 
 name := "zio-saga"
 
-val mainScala = "2.12.10"
-val allScala  = Seq("2.11.12", mainScala, "2.13.1")
+val mainScala = "2.13.3"
+val allScala = Seq("2.11.12", "2.12.12", mainScala, "3.0.0-M2")
 
 inThisBuild(
   List(
@@ -30,22 +30,31 @@ inThisBuild(
 
 lazy val commonSettings = Seq(
   scalaVersion := mainScala,
-  scalacOptions ++= Seq(
-    "-deprecation",
-    "-encoding",
-    "UTF-8",
-    "-explaintypes",
-    "-Yrangepos",
-    "-feature",
-    "-language:higherKinds",
-    "-language:existentials",
-    "-language:implicitConversions",
-    "-unchecked",
-    "-Xlint:_,-type-parameter-shadow",
-    "-Ywarn-numeric-widen",
-    "-Ywarn-unused",
-    "-Ywarn-value-discard"
-  ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
+  scalacOptions ++= {
+    if (isDotty.value) Seq(
+      "-encoding",
+      "UTF-8",
+      "-feature",
+      "-unchecked",
+      "-language:implicitConversions"
+      // "-Xfatal-warnings" will be added after the migration
+    ) else Seq(
+      "-deprecation",
+      "-encoding",
+      "UTF-8",
+      "-explaintypes",
+      "-Yrangepos",
+      "-feature",
+      "-language:higherKinds",
+      "-language:existentials",
+      "-language:implicitConversions",
+      "-unchecked",
+      "-Xlint:_,-type-parameter-shadow",
+      "-Ywarn-numeric-widen",
+      "-Ywarn-unused",
+      "-Ywarn-value-discard"
+    )
+  } ++ (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 11)) =>
       Seq(
         "-Xfuture",
@@ -92,7 +101,7 @@ lazy val core = project
       "dev.zio"       %% "zio"          % "1.0.3",
       "dev.zio"       %% "zio-test"     % "1.0.3" % "test",
       "dev.zio"       %% "zio-test-sbt" % "1.0.3" % "test"
-    ),
+    ).map(_ withDottyCompat scalaVersion.value),
     testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
   )
 
