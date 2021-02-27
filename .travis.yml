@@ -10,9 +10,9 @@ matrix:
     - scala: 2.11.12
       jdk: openjdk11
     # Scala 2.12, JVM
-    - scala: 2.12.12
+    - scala: 2.12.13
       jdk: openjdk8
-    - scala: 2.12.12
+    - scala: 2.12.13
       jdk: openjdk11
     # Scala 2.13, JVM
     - scala: 2.13.3
