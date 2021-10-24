@@ -4,7 +4,7 @@ import sbt.file
 name := "zio-saga"
 
 val mainScala = "2.13.3"
-val allScala = Seq("2.11.12", "2.12.12", mainScala, "3.0.0-M3")
+val allScala = Seq("2.12.12", mainScala, "3.0.2")
 
 inThisBuild(
   List(
@@ -30,44 +30,27 @@ inThisBuild(
 
 lazy val commonSettings = Seq(
   scalaVersion := mainScala,
-  scalacOptions ++= {
-    if (isDotty.value) Seq(
-      "-encoding",
-      "UTF-8",
-      "-feature",
-      "-unchecked",
-      "-language:implicitConversions"
-      // "-Xfatal-warnings" will be added after the migration
-    ) else Seq(
-      "-deprecation",
-      "-encoding",
-      "UTF-8",
-      "-explaintypes",
-      "-Yrangepos",
-      "-feature",
-      "-language:higherKinds",
-      "-language:existentials",
-      "-language:implicitConversions",
-      "-unchecked",
-      "-Xlint:_,-type-parameter-shadow",
-      "-Ywarn-numeric-widen",
-      "-Ywarn-unused",
-      "-Ywarn-value-discard"
-    )
-  } ++ (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) =>
-      Seq(
-        "-Xfuture",
-        "-Yno-adapted-args",
-        "-Ypartial-unification",
-        "-Ywarn-inaccessible",
-        "-Ywarn-infer-any",
-        "-Ywarn-nullary-override",
-        "-Ywarn-nullary-unit"
-      )
+  scalacOptions ++= Seq(
+    "-deprecation",
+    "-encoding",
+    "UTF-8",
+    "-explaintypes",
+    "-Yrangepos",
+    "-feature",
+    "-Xfuture",
+    "-language:higherKinds",
+    "-language:existentials",
+    "-language:implicitConversions",
+    "-unchecked",
+    "-Xlint:_,-type-parameter-shadow",
+    "-Ywarn-numeric-widen",
+    "-Ywarn-unused",
+    "-Ywarn-value-discard"
+  ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((3, _)) =>
+      Seq("-Ykind-projector", "-unchecked")
     case Some((2, 12)) =>
       Seq(
-        "-Xfuture",
         "-Xsource:2.13",
         "-Yno-adapted-args",
         "-Ypartial-unification",
@@ -78,8 +61,7 @@ lazy val commonSettings = Seq(
         "-Ywarn-nullary-unit",
         "-opt-inline-from:<source>",
         "-opt-warnings",
-        "-opt:l:inline",
-        "-Ypartial-unification"
+        "-opt:l:inline"
       )
     case _ => Nil
   }),
@@ -97,10 +79,10 @@ lazy val core = project
     name := "zio-saga-core",
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
-      "dev.zio"       %% "zio"          % "1.0.7",
-      "dev.zio"       %% "zio-test"     % "1.0.7" % "test",
-      "dev.zio"       %% "zio-test-sbt" % "1.0.7" % "test"
-    ).map(_ withDottyCompat scalaVersion.value),
+      "dev.zio"       %% "zio"          % "1.0.12",
+      "dev.zio"       %% "zio-test"     % "1.0.12" % "test",
+      "dev.zio"       %% "zio-test-sbt" % "1.0.12" % "test"
+    ),
     testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
   )
 
