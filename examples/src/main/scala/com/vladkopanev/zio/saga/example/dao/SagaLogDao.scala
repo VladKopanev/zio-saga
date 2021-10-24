@@ -71,16 +71,12 @@ class SagaLogDaoImpl extends SagaLogDao {
     import io.circe.parser._
     Meta.Advanced
       .other[PGobject]("jsonb")
-      .timap[Json](
-        pgObj => parse(pgObj.getValue).fold(e => sys.error(e.message), identity)
-      )(
-        json => {
-          val pgObj = new PGobject
-          pgObj.setType("jsonb")
-          pgObj.setValue(json.noSpaces)
-          pgObj
-        }
-      )
+      .timap[Json](pgObj => parse(pgObj.getValue).fold(e => sys.error(e.message), identity)) { json =>
+        val pgObj = new PGobject
+        pgObj.setType("jsonb")
+        pgObj.setValue(json.noSpaces)
+        pgObj
+      }
   }
 
 }
