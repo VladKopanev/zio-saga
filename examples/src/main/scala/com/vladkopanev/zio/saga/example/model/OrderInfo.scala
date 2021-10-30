@@ -2,7 +2,6 @@ package com.vladkopanev.zio.saga.example.model
 
 import java.util.UUID
 
-
 case class OrderInfo(userId: UUID, orderId: BigInt, money: BigDecimal, bonuses: Double)
 
 object OrderInfo {

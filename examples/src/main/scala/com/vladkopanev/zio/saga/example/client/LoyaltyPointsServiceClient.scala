@@ -15,7 +15,7 @@ trait LoyaltyPointsServiceClient {
 }
 
 class LoyaltyPointsServiceClientStub(logger: Logger[Task], maxRequestTimeout: Int, flaky: Boolean)
-    extends LoyaltyPointsServiceClient {
+  extends LoyaltyPointsServiceClient {
 
   override def assignLoyaltyPoints(userId: UUID, amount: Double, traceId: String): TaskC[Unit] =
     for {

@@ -15,7 +15,7 @@ trait PaymentServiceClient {
 }
 
 class PaymentServiceClientStub(logger: Logger[Task], maxRequestTimeout: Int, flaky: Boolean)
-    extends PaymentServiceClient {
+  extends PaymentServiceClient {
 
   override def collectPayments(userId: UUID, amount: BigDecimal, traceId: String): TaskC[Unit] =
     for {

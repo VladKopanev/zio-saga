@@ -2,11 +2,7 @@ package com.vladkopanev.zio.saga.example
 
 import java.util.UUID
 
-import com.vladkopanev.zio.saga.example.client.{
-    LoyaltyPointsServiceClient,
-    OrderServiceClient,
-    PaymentServiceClient
-  }
+import com.vladkopanev.zio.saga.example.client.{ LoyaltyPointsServiceClient, OrderServiceClient, PaymentServiceClient }
 import com.vladkopanev.zio.saga.example.dao.SagaLogDao
 import com.vladkopanev.zio.saga.example.model.{ OrderSagaData, OrderSagaError, SagaStep }
 import io.chrisdavenport.log4cats.StructuredLogger
@@ -49,15 +45,20 @@ class OrderSagaCoordinatorImpl(
       executedSteps: List[SagaStep],
       compensating: Boolean = false
     ) =
-      ZIO.fromOption(
-          executedSteps.find(step => step.name == stepName && !compensating).flatMap(_.failure).map(new OrderSagaError(_))
-        ).flip *> request
-          .timeoutFail(new TimeoutException(s"Execution Timeout occurred for $stepName step"))(maxRequestTimeout.seconds)
-          .tapBoth(
-            e => sagaLogDao.createSagaStep(stepName, sagaId, result = None, failure = Some(e.getMessage)),
-            _ => sagaLogDao.createSagaStep(stepName, sagaId, result = None)
-          )
-          .when(!executedSteps.exists(_.name == stepName))
+      ZIO
+        .fromOption(
+          executedSteps
+            .find(step => step.name == stepName && !compensating)
+            .flatMap(_.failure)
+            .map(new OrderSagaError(_))
+        )
+        .flip *> request
+        .timeoutFail(new TimeoutException(s"Execution Timeout occurred for $stepName step"))(maxRequestTimeout.seconds)
+        .tapBoth(
+          e => sagaLogDao.createSagaStep(stepName, sagaId, result = None, failure = Some(e.getMessage)),
+          _ => sagaLogDao.createSagaStep(stepName, sagaId, result = None)
+        )
+        .when(!executedSteps.exists(_.name == stepName))
 
     def collectPayments(executed: List[SagaStep], sagaId: Long) = mkSagaRequest(
       paymentServiceClient.collectPayments(userId, money, sagaId.toString),
@@ -104,24 +105,33 @@ class OrderSagaCoordinatorImpl(
     val expSchedule = Schedule.exponential(1.second)
     def buildSaga(sagaId: Long, executedSteps: List[SagaStep]) =
       for {
-        _ <- collectPayments(executedSteps, sagaId) retryableCompensate (refundPayments(executedSteps, sagaId), expSchedule)
-        _ <- assignLoyaltyPoints(executedSteps, sagaId) retryableCompensate (cancelLoyaltyPoints(executedSteps, sagaId), expSchedule)
+        _ <- collectPayments(executedSteps, sagaId) retryableCompensate (refundPayments(
+          executedSteps,
+          sagaId
+        ), expSchedule)
+        _ <- assignLoyaltyPoints(executedSteps, sagaId) retryableCompensate (cancelLoyaltyPoints(
+          executedSteps,
+          sagaId
+        ), expSchedule)
         _ <- closeOrder(executedSteps, sagaId) retryableCompensate (reopenOrder(executedSteps, sagaId), expSchedule)
       } yield ()
 
     import io.circe.syntax._
 
     val mdcLog = wrapMDC(logger, userId, orderId, sagaIdOpt)
-    val data   = OrderSagaData(userId, orderId, money, bonuses).asJson
+    val data = OrderSagaData(userId, orderId, money, bonuses).asJson
 
     for {
       _        <- mdcLog.info("Saga execution started")
       sagaId   <- sagaIdOpt.fold(sagaLogDao.startSaga(userId, data))(i => Task.succeed(i))
       executed <- sagaLogDao.listExecutedSteps(sagaId)
-      _ <- buildSaga(sagaId, executed).transact.tapBoth({
-            case _: OrderSagaError => sagaLogDao.finishSaga(sagaId)
-            case _                 => ZIO.unit
-          }, _ => sagaLogDao.finishSaga(sagaId))
+      _ <- buildSaga(sagaId, executed).transact.tapBoth(
+        {
+          case _: OrderSagaError => sagaLogDao.finishSaga(sagaId)
+          case _                 => ZIO.unit
+        },
+        _ => sagaLogDao.finishSaga(sagaId)
+      )
       _ <- mdcLog.info("Saga execution finished")
     } yield ()
 
@@ -133,13 +143,12 @@ class OrderSagaCoordinatorImpl(
       sagas <- sagaLogDao.listUnfinishedSagas
       _     <- logger.info(s"Found unfinished sagas: $sagas")
       _ <- ZIO.foreachParN_(100)(sagas) { sagaInfo =>
-            ZIO.fromEither(sagaInfo.data.as[OrderSagaData]).flatMap {
-              case OrderSagaData(userId, orderId, money, bonuses) =>
-                runSaga(userId, orderId, money, bonuses, Some(sagaInfo.id)).catchSome {
-                  case _: OrderSagaError => ZIO.unit
-                }
-            }
+        ZIO.fromEither(sagaInfo.data.as[OrderSagaData]).flatMap { case OrderSagaData(userId, orderId, money, bonuses) =>
+          runSaga(userId, orderId, money, bonuses, Some(sagaInfo.id)).catchSome { case _: OrderSagaError =>
+            ZIO.unit
           }
+        }
+      }
       _ <- logger.info("Sagas recovery finished")
     } yield ()
 

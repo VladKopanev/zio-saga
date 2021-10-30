@@ -13,14 +13,13 @@ final class SagaEndpoint(orderSagaCoordinator: OrderSagaCoordinator) extends Htt
   private implicit val decoder = jsonOf[TaskC, OrderInfo]
 
   val service: HttpApp[TaskC] = HttpRoutes
-    .of[TaskC] {
-      case req @ POST -> Root / "saga" / "finishOrder" =>
-        for {
-          OrderInfo(userId, orderId, money, bonuses) <- req.as[OrderInfo]
-          resp <- orderSagaCoordinator
-                   .runSaga(userId, orderId, money, bonuses, None)
-                   .foldM(fail => InternalServerError(fail.getMessage), _ => Ok("Saga submitted"))
-        } yield resp
+    .of[TaskC] { case req @ POST -> Root / "saga" / "finishOrder" =>
+      for {
+        OrderInfo(userId, orderId, money, bonuses) <- req.as[OrderInfo]
+        resp <- orderSagaCoordinator
+          .runSaga(userId, orderId, money, bonuses, None)
+          .foldM(fail => InternalServerError(fail.getMessage), _ => Ok("Saga submitted"))
+      } yield resp
     }
     .orNotFound
 }
