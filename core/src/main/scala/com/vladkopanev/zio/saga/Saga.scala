@@ -1,7 +1,7 @@
 package com.vladkopanev.zio.saga
 
 import com.vladkopanev.zio.saga.Saga.Compensator
-import zio.clock.Clock
+import zio.Clock
 import zio.{Cause, Exit, Fiber, IO, RIO, Schedule, Task, UIO, ZIO}
 
 /**
@@ -32,7 +32,7 @@ final class Saga[-R, +E, +A] private (
   def flatMap[R1 <: R, E1 >: E, B](f: A => Saga[R1, E1, B]): Saga[R1, E1, B] =
     new Saga(request.flatMap {
       case (a, compA) =>
-        f(a).request.bimap(
+        f(a).request.mapBoth(
           { case (e, compB) => (e, compB *> compA) },
           { case (r, compB) => (r, compB *> compA) }
         )
@@ -70,24 +70,24 @@ final class Saga[-R, +E, +A] private (
       fasterSaga: Exit[(E1, Compensator[R1, E1]), (A1, Compensator[R1, E1])],
       slowerSaga: Fiber[(E1, Compensator[R1, E1]), (B1, Compensator[R1, E1])]
     ): ZIO[R1, (E1, Compensator[R1, E1]), (C1, Compensator[R1, E1])] =
-      fasterSaga.foldM(
+      fasterSaga.foldZIO(
         { cause =>
           def extractCompensatorFrom(c: Cause[(E1, Compensator[R1, E1])]): Compensator[R1, E1] =
             c.failures.headOption.map[Compensator[R1, E1]](_._2).getOrElse(ZIO.dieMessage("Compensator was lost"))
           /* we can't use interrupt here because we won't get a compensation action in case
            IO was still running and interrupted */
           slowerSaga.await.flatMap(
-            _.foldM(
+            _.foldZIO(
               { loserCause =>
                 val compA = extractCompensatorFrom(cause)
                 val compB = extractCompensatorFrom(loserCause)
-                ZIO.halt((cause && loserCause).map { case (e, _) => (e, g(compB, compA)) })
-              }, { case (_, compB) => ZIO.halt(cause.map { case (e, compA) => (e, g(compB, compA)) }) }
+                ZIO.failCause((cause && loserCause).map { case (e, _) => (e, g(compB, compA)) })
+              }, { case (_, compB) => ZIO.failCause(cause.map { case (e, compA) => (e, g(compB, compA)) }) }
             )
           )
         }, {
           case (a, compA) =>
-            slowerSaga.join.bimap(
+            slowerSaga.join.mapBoth(
               { case (e, compB) => (e, g(compB, compA)) },
               { case (b, compB) => (f(a, b), g(compB, compA)) }
             )
@@ -102,7 +102,7 @@ final class Saga[-R, +E, +A] private (
    * Materializes this Saga to ZIO effect.
    * */
   def transact: ZIO[R, E, A] =
-    request.tapError({ case (e, compA) => compA.mapError(_ => (e, IO.unit)) }).bimap(_._1, _._1)
+    request.tapError({ case (e, compA) => compA.mapError(_ => (e, IO.unit)) }).mapBoth(_._1, _._1)
 }
 
 object Saga {
@@ -119,7 +119,7 @@ object Saga {
    * Constructs new Saga from action and compensation function that will be applied the result of this request.
    * */
   def compensate[R, E, A](action: ZIO[R, E, A], compensation: Either[E, A] => Compensator[R, E]): Saga[R, E, A] =
-    new Saga(action.bimap(e => (e, compensation(Left(e))), a => (a, compensation(Right(a)))))
+    new Saga(action.mapBoth(e => (e, compensation(Left(e))), a => (a, compensation(Right(a)))))
 
   /**
    * Constructs new Saga from action and compensation function that will be applied only to failed result of this request.
