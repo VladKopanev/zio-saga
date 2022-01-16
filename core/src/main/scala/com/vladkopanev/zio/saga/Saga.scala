@@ -162,7 +162,7 @@ object Saga {
    * Runs all Sagas in iterable in sequence and collects the results.
    */
   def collectAll[R, E, A](sagas: Iterable[Saga[R, E, A]]): Saga[R, E, List[A]] =
-    foreach[R, E, Saga[R, E, A], A](sagas)(identity)
+    foreach(sagas)(identity)
 
   /**
    * Runs all Sagas in iterable in parallel, and collect
