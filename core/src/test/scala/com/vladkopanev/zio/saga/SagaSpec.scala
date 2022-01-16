@@ -17,7 +17,7 @@ object SagaSpec
         suite("Saga#map")(test("should change the result value with provided function") {
           assertM(Saga.compensate(ZIO.succeed(1), ZIO.unit).map(_.toString).transact)(equalTo("1"))
         }),
-        suite("Saga#zipPar")(test("should successfully run two Sagas") {
+        suite("Saga#zipPar")(test("should successfully run two Sagas in parallel") {
           assertM((bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)).transact)(equalTo((FlightPayment, HotelPayment)))
         }),
         suite("Saga#zip")(test("should successfully run two Sagas in sequence") {
