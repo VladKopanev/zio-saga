@@ -20,7 +20,7 @@ object SagaSpec
         suite("Saga#zipPar")(test("should successfully run two Sagas") {
           assertM((bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)).transact)(equalTo((FlightPayment, HotelPayment)))
         }),
-        suite("Saga#zip")(test("should successfully run two Sagas") {
+        suite("Saga#zip")(test("should successfully run two Sagas in sequence") {
           assertM((bookFlight compensate cancelFlight zip (bookHotel compensate cancelHotel)).transact)(equalTo((FlightPayment, HotelPayment)))
         }),
         suite("Saga#zipWithPar")(
