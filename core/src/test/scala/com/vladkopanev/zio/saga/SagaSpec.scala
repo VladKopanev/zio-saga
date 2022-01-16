@@ -20,6 +20,9 @@ object SagaSpec
         suite("Saga#zipPar")(test("should successfully run two Sagas") {
           assertM((bookFlight compensate cancelFlight zipPar (bookHotel compensate cancelHotel)).transact)(equalTo((FlightPayment, HotelPayment)))
         }),
+        suite("Saga#zip")(test("should successfully run two Sagas") {
+          assertM((bookFlight compensate cancelFlight zip (bookHotel compensate cancelHotel)).transact)(equalTo((FlightPayment, HotelPayment)))
+        }),
         suite("Saga#zipWithPar")(
           test("should successfully run two Sagas in parallel") {
             for {
@@ -83,6 +86,39 @@ object SagaSpec
                     .orElse(IO.unit)
               log <- actionLog.get
             } yield assert(log)(equalTo(Vector("flight canceled", "hotel canceled")))
+          }
+        ),
+        suite("Saga#zipWith")(
+          test("should successfully run two Sagas in sequence") {
+          for {
+            startTime <- currentTime(TimeUnit.MILLISECONDS).provide(Clock.live)
+            _ <- (sleep(1000.millis) *> bookFlight compensate cancelFlight)
+              .zipWith(sleep(1000.millis) *> bookHotel compensate cancelHotel)((_, _) => ())
+              .transact
+            endTime <- currentTime(TimeUnit.MILLISECONDS).provide(Clock.live)
+          } yield assertTrue(endTime - startTime >= 2000L)
+        },
+          test("when right failed then should compensate right before left") {
+            for {
+              actionLog <- Ref.make(Vector.empty[String])
+              _ <- (bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))
+                .zipWith(IO.fail(HotelBookingError()) compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))((_, _) => ())
+                .transact
+                .orElse(IO.unit)
+              log <- actionLog.get
+            } yield assertTrue(log == Vector("hotel canceled", "flight canceled"))
+          },
+          test("when left failed should compensate left without calling right") {
+            for {
+              actionLog <- Ref.make(Vector.empty[String])
+              _ <- (IO.fail(HotelBookingError()) compensate cancelHotel(actionLog.update(_ :+ "hotel canceled")))
+                .zipWith(actionLog.update(_ :+ "flight booked") *> bookFlight compensate cancelFlight(actionLog.update(_ :+ "flight canceled")))((_, _) =>
+                  ()
+                )
+                .transact
+                .orElse(IO.unit)
+              log <- actionLog.get
+            } yield assertTrue(log == Vector("hotel canceled"))
           }
         ),
         suite("Saga#zipWithParAll")(test("should allow combining compensations in parallel") {
