@@ -72,7 +72,7 @@ final class Saga[-R, +E, +A] private (
   def zipWith[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])(f: (A, B) => C): Saga[R1, E1, C] = (for {
     thisResult <- this
     thatResult <- that
-  } yield (thisResult, thatResult)).map(f.tupled)
+  } yield f(thisResult, thatResult))
 
   /**
    * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`
