@@ -95,8 +95,8 @@ lazy val examples = project
     scalaVersion := mainScala,
     coverageEnabled := false,
     libraryDependencies ++= Seq(
-      "ch.qos.logback"    % "logback-classic"          % "1.2.7",
-      "dev.zio"           %% "zio-interop-cats"        % "3.1.1.0",
+      "ch.qos.logback"    % "logback-classic"          % "1.2.10",
+      "dev.zio"           %% "zio-interop-cats"        % "3.2.9.0",
       "org.typelevel"     %% "log4cats-core"           % Versions.Log4Cats,
       "org.typelevel"     %% "log4cats-slf4j"          % Versions.Log4Cats,
       "io.circe"          %% "circe-generic"           % Versions.Circe,
