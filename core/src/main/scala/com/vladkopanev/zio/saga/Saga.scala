@@ -1,7 +1,7 @@
 package com.vladkopanev.zio.saga
 
 import com.vladkopanev.zio.saga.Saga.Compensator
-import zio.clock.Clock
+import zio.Clock
 import zio.{Cause, Exit, Fiber, IO, RIO, Schedule, Task, UIO, ZIO}
 
 /**
