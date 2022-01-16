@@ -53,7 +53,7 @@ final class Saga[-R, +E, +A] private (
 
   /**
    * Returns Saga that will execute this Saga in sequence with other, combining the result in a tuple.
-   * Both compensating actions would be executed in case of failure.
+   * Only failed effect would be compensated.
    * */
   def zip[R1 <: R, E1 >: E, B](that: Saga[R1, E1, B]): Saga[R1, E1, (A, B)] =
     zipWith(that)((a, b) => (a, b))
@@ -67,7 +67,7 @@ final class Saga[-R, +E, +A] private (
 
   /**
    * Returns Saga that will execute this Saga in sequence with other, combining the result with specified function `f`.
-   * Both compensating actions would be executed in case of failure.
+   * Only failed effect would be compensated.
    * */
   def zipWith[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])(f: (A, B) => C): Saga[R1, E1, C] = (for {
     thisResult <- this

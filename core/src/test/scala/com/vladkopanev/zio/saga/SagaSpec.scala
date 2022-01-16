@@ -347,6 +347,48 @@ object SagaSpec
 
             assertM(saga)(equalTo(expectedError))
           }
+        ),
+        suite("Saga#collectAll")(
+          test("should collect all effects in one collection in sequential way") {
+            for {
+              actionLog <- Ref.make(Vector.empty[String])
+
+              payments <- Saga
+                .collectAll(
+                  (bookFlight <* actionLog.update(_ :+ "flight booked")).noCompensate ::
+                    (bookHotel <* actionLog.update(_ :+ "hotel booked")).noCompensate ::
+                    (bookCar <* actionLog.update(_ :+ "car booked")).noCompensate ::
+                    Nil
+                )
+                .transact
+
+              actionsOrder <- actionLog.get
+            } yield assert(payments)(hasSameElements(FlightPayment :: HotelPayment :: CarPayment :: Nil)) &&
+              assertTrue(actionsOrder == Vector("flight booked", "hotel booked", "car booked"))
+          },
+          test("should compensate made effects when one of them failed") {
+            for {
+              log <- Ref.make(Vector.empty[String])
+
+              successfullyBookFlight = bookFlight.compensate(cancelFlight(log.update(_ :+ "flight canceled")))
+
+              failOnHotelBook = IO.fail(HotelBookingError)
+                .compensate(cancelHotel(log.update(_ :+ "hotel canceled")))
+
+              successfullyBookCar = (bookCar <* log.update(_ :+ "car booked"))
+                .compensate(cancelCar(log.update(_ :+ "car canceled")))
+
+              _ <- Saga
+                .collectAll(successfullyBookFlight :: failOnHotelBook :: successfullyBookCar :: Nil)
+                .transact
+                .fold(
+                  _ => (),
+                  _ => ()
+                )
+
+              actionsOrder <- log.get
+            } yield assertTrue(actionsOrder == Vector("hotel canceled", "flight canceled"))
+          }
         )
       )
 }
