@@ -90,14 +90,14 @@ object SagaSpec
         ),
         suite("Saga#zipWith")(
           test("should successfully run two Sagas in sequence") {
-          for {
-            startTime <- currentTime(TimeUnit.MILLISECONDS).provide(Clock.live)
-            _ <- (sleep(1000.millis) *> bookFlight compensate cancelFlight)
-              .zipWith(sleep(1000.millis) *> bookHotel compensate cancelHotel)((_, _) => ())
-              .transact
-            endTime <- currentTime(TimeUnit.MILLISECONDS).provide(Clock.live)
-          } yield assertTrue(endTime - startTime >= 2000L)
-        },
+            (for {
+              actionLog <- Ref.make(Vector.empty[String]).noCompensate
+              hotelBooked = bookHotel <* actionLog.update(_ :+ "hotel booked") compensate cancelHotel
+              flightBooked = bookFlight <* actionLog.update(_ :+ "flight booked") compensate cancelFlight
+              _       <- hotelBooked.zipWith(flightBooked)((_, _) => ())
+              actions <- actionLog.get.noCompensate
+            } yield assertTrue(actions == Vector("hotel booked", "flight booked"))).transact
+          },
           test("when right failed then should compensate right before left") {
             for {
               actionLog <- Ref.make(Vector.empty[String])
