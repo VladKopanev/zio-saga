@@ -52,11 +52,27 @@ final class Saga[-R, +E, +A] private (
     zipWithPar(that)((a, b) => (a, b))
 
   /**
+   * Returns Saga that will execute this Saga in sequence with other, combining the result in a tuple.
+   * Only failed effect would be compensated.
+   * */
+  def zip[R1 <: R, E1 >: E, B](that: Saga[R1, E1, B]): Saga[R1, E1, (A, B)] =
+    zipWith(that)((a, b) => (a, b))
+
+  /**
    * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`.
    * Both compensating actions would be executed in case of failure.
    * */
   def zipWithPar[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])(f: (A, B) => C): Saga[R1, E1, C] =
     zipWithParAll(that)(f)((a, b) => a *> b)
+
+  /**
+   * Returns Saga that will execute this Saga in sequence with other, combining the result with specified function `f`.
+   * Only failed effect would be compensated.
+   * */
+  def zipWith[R1 <: R, E1 >: E, B, C](that: Saga[R1, E1, B])(f: (A, B) => C): Saga[R1, E1, C] = (for {
+    thisResult <- this
+    thatResult <- that
+  } yield f(thisResult, thatResult))
 
   /**
    * Returns Saga that will execute this Saga in parallel with other, combining the result with specified function `f`
@@ -102,7 +118,7 @@ final class Saga[-R, +E, +A] private (
    * Materializes this Saga to ZIO effect.
    * */
   def transact: ZIO[R, E, A] =
-    request.tapError({ case (e, compA) => compA.mapError(_ => (e, IO.unit)) }).mapBoth(_._1, _._1)
+    request.tapError({ case (e, compA) => compA.orElseFail((e, IO.unit)) }).mapBoth(_._1, _._1)
 }
 
 object Saga {
@@ -143,6 +159,12 @@ object Saga {
     foreachPar[R, E, Saga[R, E, A], A](sagas)(identity)
 
   /**
+   * Runs all Sagas in iterable in sequence and collects the results.
+   */
+  def collectAll[R, E, A](sagas: Iterable[Saga[R, E, A]]): Saga[R, E, List[A]] =
+    foreach(sagas)(identity)
+
+  /**
    * Runs all Sagas in iterable in parallel, and collect
    * the results.
    */
@@ -162,6 +184,15 @@ object Saga {
   def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => Saga[R, E, B]): Saga[R, E, List[B]] =
     as.foldRight[Saga[R, E, List[B]]](Saga.noCompensate(IO.succeed(Nil))) { (a, io) =>
       fn(a).zipWithPar(io)((b, bs) => b :: bs)
+    }
+
+  /**
+   * Constructs a Saga that applies the function `f` to each element of the `Iterable[A]` in sequence, and returns the
+   * results in a new `List[B]`.
+   */
+  def foreach[R, E, A, B](as: Iterable[A])(fn: A => Saga[R, E, B]): Saga[R, E, List[B]] =
+    as.foldRight[Saga[R, E, List[B]]](Saga.noCompensate(IO.succeed(Nil))) { (a, io) =>
+      fn(a).zipWith(io)((b, bs) => b :: bs)
     }
 
   /**
