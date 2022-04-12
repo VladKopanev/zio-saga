@@ -4,7 +4,7 @@ import sbt.file
 name := "zio-saga"
 
 val mainScala = "2.13.8"
-val allScala = Seq("2.12.15", mainScala, "3.0.2")
+val allScala = Seq("2.12.15", mainScala, "3.1.2")
 
 inThisBuild(
   List(
@@ -79,14 +79,12 @@ lazy val core = project
     name := "zio-saga-core",
     crossScalaVersions := allScala,
     libraryDependencies ++= Seq(
-      "dev.zio"       %% "zio"          % Versions.Zio,
-      "dev.zio"       %% "zio-test"     % Versions.Zio % "test",
-      "dev.zio"       %% "zio-test-sbt" % Versions.Zio % "test"
+      "dev.zio" %% "zio"          % Versions.Zio,
+      "dev.zio" %% "zio-test"     % Versions.Zio % "test",
+      "dev.zio" %% "zio-test-sbt" % Versions.Zio % "test"
     ),
     testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
   )
-
-
 
 lazy val examples = project
   .in(file("examples"))
@@ -95,21 +93,21 @@ lazy val examples = project
     scalaVersion := mainScala,
     coverageEnabled := false,
     libraryDependencies ++= Seq(
-      "ch.qos.logback"    % "logback-classic"          % "1.2.10",
-      "dev.zio"           %% "zio-interop-cats"        % "3.2.9.0",
-      "org.typelevel"     %% "log4cats-core"           % Versions.Log4Cats,
-      "org.typelevel"     %% "log4cats-slf4j"          % Versions.Log4Cats,
-      "io.circe"          %% "circe-generic"           % Versions.Circe,
-      "io.circe"          %% "circe-parser"            % Versions.Circe,
-      "org.http4s"        %% "http4s-circe"            % Versions.Http4s,
-      "org.http4s"        %% "http4s-dsl"              % Versions.Http4s,
-      "org.http4s"        %% "http4s-blaze-server"     % Versions.Http4s,
-      "org.tpolecat"      %% "doobie-core"             % Versions.Doobie,
-      "org.tpolecat"      %% "doobie-hikari"           % Versions.Doobie,
-      "org.tpolecat"      %% "doobie-postgres"         % Versions.Doobie,
-     // compilerPlugin("org.scalamacros"  %% "paradise"           % "2.1.0"),
-      compilerPlugin("org.typelevel"    %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
-      compilerPlugin("com.olegpy"       %% "better-monadic-for" % "0.3.1")
+      "ch.qos.logback" % "logback-classic"     % "1.2.10",
+      "dev.zio"       %% "zio-interop-cats"    % "3.2.9.0",
+      "org.typelevel" %% "log4cats-core"       % Versions.Log4Cats,
+      "org.typelevel" %% "log4cats-slf4j"      % Versions.Log4Cats,
+      "io.circe"      %% "circe-generic"       % Versions.Circe,
+      "io.circe"      %% "circe-parser"        % Versions.Circe,
+      "org.http4s"    %% "http4s-circe"        % Versions.Http4s,
+      "org.http4s"    %% "http4s-dsl"          % Versions.Http4s,
+      "org.http4s"    %% "http4s-blaze-server" % Versions.Http4s,
+      "org.tpolecat"  %% "doobie-core"         % Versions.Doobie,
+      "org.tpolecat"  %% "doobie-hikari"       % Versions.Doobie,
+      "org.tpolecat"  %% "doobie-postgres"     % Versions.Doobie,
+      // compilerPlugin("org.scalamacros"  %% "paradise"           % "2.1.0"),
+      compilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
+      compilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1")
     )
   )
   .dependsOn(core % "compile->compile")
