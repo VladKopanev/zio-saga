@@ -4,7 +4,7 @@ import sbt.file
 name := "zio-saga"
 
 val mainScala = "2.13.9"
-val allScala = Seq("2.12.17", mainScala, "3.1.3")
+val allScala = Seq("2.12.17", mainScala, "3.2.2")
 
 inThisBuild(
   List(
