@@ -65,7 +65,7 @@ lazy val commonSettings = Seq(
       )
     case _ => Nil
   }),
-  resolvers ++= Seq(Resolver.sonatypeRepo("snapshots"), Resolver.sonatypeRepo("releases"))
+  resolvers ++= Seq(Resolver.sonatypeOssRepos("snapshots"), Resolver.sonatypeOssRepos("releases"))
 )
 
 lazy val root = project
