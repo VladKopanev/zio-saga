@@ -5,9 +5,9 @@ language: scala
 matrix:
   include:
     # Scala 2.12, JVM
-    - scala: 2.12.17
+    - scala: 2.12.18
       jdk: openjdk8
-    - scala: 2.12.17
+    - scala: 2.12.18
       jdk: openjdk11
     # Scala 2.13, JVM
     - scala: 2.13.9
