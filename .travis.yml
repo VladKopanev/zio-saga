@@ -15,9 +15,9 @@ matrix:
     - scala: 2.13.9
       jdk: openjdk11
     # Scala 3.0, JVM
-    - scala: 3.1.3
+    - scala: 3.3.1
       jdk: openjdk8
-    - scala: 3.1.3
+    - scala: 3.3.1
       jdk: openjdk11
 
 branches:
